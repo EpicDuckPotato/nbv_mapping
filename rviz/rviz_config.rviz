@@ -7,7 +7,6 @@ Panels:
         - /Global Options1
         - /Path1
         - /Map1
-        - /Map1/Status1
       Splitter Ratio: 0.4651159942150116
     Tree Height: 804
   - Class: rviz/Selection
@@ -74,6 +73,26 @@ Visualization Manager:
         planner_node: true
       Queue Size: 100
       Value: true
+    - Class: rviz/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+        drone_pose:
+          Value: true
+        world:
+          Value: true
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        world:
+          drone_pose:
+            {}
+      Update Interval: 0
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -100,25 +119,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 20.298479080200195
+      Distance: 39.93706512451172
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -5.432063579559326
-        Y: -4.7521138191223145
-        Z: 0.38143399357795715
+        X: 6.986940383911133
+        Y: 20.468652725219727
+        Z: 0.38143041729927063
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5297956466674805
+      Pitch: 1.11479651927948
       Target Frame: world
       Value: ThirdPersonFollower (rviz)
-      Yaw: 3.1006147861480713
+      Yaw: 1.645612120628357
     Saved: ~
 Window Geometry:
   Displays:
