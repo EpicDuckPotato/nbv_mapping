@@ -61,6 +61,7 @@
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
+  <depend>roslib</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

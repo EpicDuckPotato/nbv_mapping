@@ -1,9 +1,11 @@
 #include <iostream>
 #include "ros/ros.h"
+#include "ros/package.h"
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/Marker.h>
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <string>
@@ -75,9 +77,32 @@ int main(int argc, char **argv) {
     marker_array.markers[i].id = i;
   }
 
+
+  ros::Publisher sensor_footprint_pub = nh.advertise<visualization_msgs::Marker>("/drone/sensor_footprint", 1);
+  visualization_msgs::Marker sensor_footprint;
+  sensor_footprint.header.frame_id = "world";
+  sensor_footprint.ns = "planner_node";
+  sensor_footprint.action = visualization_msgs::Marker::ADD;
+  sensor_footprint.pose.position.x = 0;
+  sensor_footprint.pose.position.y = 0;
+  sensor_footprint.pose.position.z = 0;
+  sensor_footprint.pose.orientation.w = 1;
+  sensor_footprint.pose.orientation.x = 0;
+  sensor_footprint.pose.orientation.y = 0;
+  sensor_footprint.pose.orientation.z = 0;
+  sensor_footprint.type = visualization_msgs::Marker::MESH_RESOURCE;
+  sensor_footprint.scale.x = 1.0;
+  sensor_footprint.scale.y = 1.0;
+  sensor_footprint.scale.z = 1.0;
+  sensor_footprint.color.r = 1.0f;
+  sensor_footprint.color.g = 1.0f;
+  sensor_footprint.color.a = 0.5;
+  sensor_footprint.mesh_resource = "package://nbv_mapping/meshes/cone.stl";
+  sensor_footprint.id = map.size();
+
   ros::Rate r(20);
   while (ros::ok()) {
-    // Publish drone position to tf
+    // Publish drone pose to tf
     geometry_msgs::TransformStamped pose;
     pose.transform.rotation.w = 1;
     pose.transform.rotation.x = 0;
@@ -93,6 +118,17 @@ int main(int argc, char **argv) {
     pose.child_frame_id = "drone_pose";
 
     br.sendTransform(pose);
+
+    // Publish sensor footprint
+    sensor_footprint.pose.position.x = pose.transform.translation.x;
+    sensor_footprint.pose.position.y = pose.transform.translation.y;
+    sensor_footprint.pose.position.z = pose.transform.translation.z;
+    sensor_footprint.pose.orientation.w = pose.transform.rotation.w;
+    sensor_footprint.pose.orientation.x = pose.transform.rotation.x;
+    sensor_footprint.pose.orientation.y = pose.transform.rotation.y;
+    sensor_footprint.pose.orientation.z = pose.transform.rotation.z;
+    sensor_footprint.header.stamp = pose.header.stamp;
+    sensor_footprint_pub.publish(sensor_footprint);
 
     // Publish path
     /*

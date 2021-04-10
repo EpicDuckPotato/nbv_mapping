@@ -7,6 +7,8 @@ Panels:
         - /Global Options1
         - /Path1
         - /Map1
+        - /Sensor Footprint1
+        - /Sensor Footprint1/Status1
       Splitter Ratio: 0.4651159942150116
     Tree Height: 804
   - Class: rviz/Selection
@@ -92,6 +94,14 @@ Visualization Manager:
           drone_pose:
             {}
       Update Interval: 0
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /drone/sensor_footprint
+      Name: Sensor Footprint
+      Namespaces:
+        planner_node: true
+      Queue Size: 100
       Value: true
   Enabled: true
   Global Options:

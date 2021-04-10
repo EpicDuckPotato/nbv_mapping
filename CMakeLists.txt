@@ -9,6 +9,7 @@ project(nbv_mapping)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  roslib
   std_msgs
   tf2_ros
   visualization_msgs
