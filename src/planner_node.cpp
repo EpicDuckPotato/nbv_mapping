@@ -46,13 +46,12 @@ int main(int argc, char **argv) {
   maprows = map.size()/mapcols;
 
   tf2_ros::TransformBroadcaster br;
-
   ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("/drone/path", 1);
   nav_msgs::Path path;
   path.header.frame_id = "world";
 
+  // Publish map as a marker array of cubes
   ros::Publisher map_pub = nh.advertise<visualization_msgs::MarkerArray>("/drone/map", 1);
-
   visualization_msgs::MarkerArray marker_array;
   marker_array.markers = vector<visualization_msgs::Marker>(map.size());
   for (size_t i = 0; i < map.size(); ++i) {
@@ -76,7 +75,6 @@ int main(int argc, char **argv) {
     marker_array.markers[i].color.a = map[i];
     marker_array.markers[i].id = i;
   }
-
 
   ros::Publisher sensor_footprint_pub = nh.advertise<visualization_msgs::Marker>("/drone/sensor_footprint", 1);
   visualization_msgs::Marker sensor_footprint;
@@ -150,7 +148,7 @@ int main(int argc, char **argv) {
     path_pub.publish(path);
     */
 
-    // Display map in rviz
+    // Publish map
     for (vector<visualization_msgs::Marker>::iterator it = marker_array.markers.begin();
          it != marker_array.markers.end(); ++it) {
       it->header.stamp = pose.header.stamp;
