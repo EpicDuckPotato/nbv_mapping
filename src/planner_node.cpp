@@ -10,6 +10,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <string>
 #include <fstream>
+#include "map.h"
 
 using namespace std;
 
@@ -25,11 +26,11 @@ int main(int argc, char **argv) {
   // Store map into vector
   std::ifstream in;
   in.open(map_file);
-  vector<int> map;
+  vector<int> cells;
   int element;
   if (in.is_open()) {
     while (in >> element) {
-      map.push_back(element);
+      cells.push_back(element);
     }
   }
   in.close();
@@ -40,10 +41,12 @@ int main(int argc, char **argv) {
   string line;
   in.open(map_file);
   while (getline(in, line)) {
-    ++mapcols;
+    ++maprows;
   }
   in.close();
-  maprows = map.size()/mapcols;
+  mapcols = cells.size()/maprows;
+
+  Map ground_truth_map(maprows, mapcols, cube_length, cells);
 
   tf2_ros::TransformBroadcaster br;
   ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("/drone/path", 1);
@@ -53,15 +56,14 @@ int main(int argc, char **argv) {
   // Publish map as a marker array of cubes
   ros::Publisher map_pub = nh.advertise<visualization_msgs::MarkerArray>("/drone/map", 1);
   visualization_msgs::MarkerArray marker_array;
-  marker_array.markers = vector<visualization_msgs::Marker>(map.size());
-  for (size_t i = 0; i < map.size(); ++i) {
-    int row = i%maprows;
-    int col = i/maprows;
+  marker_array.markers = vector<visualization_msgs::Marker>(cells.size());
+  for (size_t i = 0; i < cells.size(); ++i) {
     marker_array.markers[i].header.frame_id = "world";
     marker_array.markers[i].ns = "planner_node";
     marker_array.markers[i].action = visualization_msgs::Marker::ADD;
-    marker_array.markers[i].pose.position.x = cube_length*col;
-    marker_array.markers[i].pose.position.y = cube_length*row;
+    ground_truth_map.getCellPos(marker_array.markers[i].pose.position.x,
+                                marker_array.markers[i].pose.position.y,
+                                i);
     marker_array.markers[i].pose.position.z = 0;
     marker_array.markers[i].pose.orientation.w = 1;
     marker_array.markers[i].pose.orientation.x = 0;
@@ -72,7 +74,7 @@ int main(int argc, char **argv) {
     marker_array.markers[i].scale.y = 1.0;
     marker_array.markers[i].scale.z = 1.0;
     marker_array.markers[i].color.g = 1.0f;
-    marker_array.markers[i].color.a = map[i];
+    marker_array.markers[i].color.a = ground_truth_map.getStatus(i);
     marker_array.markers[i].id = i;
   }
 
@@ -96,7 +98,7 @@ int main(int argc, char **argv) {
   sensor_footprint.color.g = 1.0f;
   sensor_footprint.color.a = 0.5;
   sensor_footprint.mesh_resource = "package://nbv_mapping/meshes/cone.stl";
-  sensor_footprint.id = map.size();
+  sensor_footprint.id = cells.size();
 
   ros::Rate r(20);
   while (ros::ok()) {

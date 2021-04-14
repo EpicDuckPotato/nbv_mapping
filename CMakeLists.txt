@@ -120,13 +120,15 @@ include_directories(
  ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(planner_node src/planner_node.cpp)
+add_executable(planner_node src/planner_node.cpp $<TARGET_OBJECTS:planning>)
 target_link_libraries(planner_node ${catkin_LIBRARIES})
 
 ## Declare a C++ library
-#add_library(planning
-#  ${CMAKE_CURRENT_SOURCE_DIR}/src/planner.cpp
-#)
+add_library(planning OBJECT
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_footprint.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/map.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/geometry.cpp
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
