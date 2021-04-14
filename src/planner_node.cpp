@@ -176,7 +176,9 @@ int main(int argc, char **argv) {
       map.getCellPos(marker_array.markers[i].pose.position.x,
                      marker_array.markers[i].pose.position.y,
                      i);
-      marker_array.markers[i].color.a = map.getStatus(i) == OCCUPIED;
+      marker_array.markers[i].color.r = map.getStatus(i) == UNMAPPED;
+      marker_array.markers[i].color.g = map.getStatus(i) == OCCUPIED;
+      marker_array.markers[i].color.a = ground_truth_map.getStatus(i) == OCCUPIED;
       marker_array.markers[i].header.stamp = pose.header.stamp;
     }
     map_pub.publish(marker_array);

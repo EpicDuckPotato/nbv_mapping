@@ -22,6 +22,9 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   double turn_limit = 2*M_PI;
   double dtheta = M_PI/4;
   double dpos = 0.1;
+  newx = x + dpos;
+  newy = y + 0.5*dpos;
+  return;
   newtheta = theta;
   newx = x + dpos*cos(newtheta);
   newy = y + dpos*sin(newtheta);
