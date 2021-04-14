@@ -11,6 +11,9 @@
 #include <string>
 #include <fstream>
 #include "map.h"
+#include "planner.h"
+#include "sensor_footprint.h"
+#include <Eigen/Dense>
 
 using namespace std;
 
@@ -48,6 +51,13 @@ int main(int argc, char **argv) {
 
   Map ground_truth_map(maprows, mapcols, cube_length, cells);
 
+  // Initialize planner
+  double x = 0;
+  double y = 0;
+  double theta = 0;
+  Planner planner(maprows, mapcols, cube_length, x, y, theta);
+
+  // ROS stuff
   tf2_ros::TransformBroadcaster br;
   ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("/drone/path", 1);
   nav_msgs::Path path;
@@ -61,9 +71,6 @@ int main(int argc, char **argv) {
     marker_array.markers[i].header.frame_id = "world";
     marker_array.markers[i].ns = "planner_node";
     marker_array.markers[i].action = visualization_msgs::Marker::ADD;
-    ground_truth_map.getCellPos(marker_array.markers[i].pose.position.x,
-                                marker_array.markers[i].pose.position.y,
-                                i);
     marker_array.markers[i].pose.position.z = 0;
     marker_array.markers[i].pose.orientation.w = 1;
     marker_array.markers[i].pose.orientation.x = 0;
@@ -74,7 +81,6 @@ int main(int argc, char **argv) {
     marker_array.markers[i].scale.y = 1.0;
     marker_array.markers[i].scale.z = 1.0;
     marker_array.markers[i].color.g = 1.0f;
-    marker_array.markers[i].color.a = ground_truth_map.getStatus(i) == OCCUPIED;
     marker_array.markers[i].id = i;
   }
 
@@ -102,15 +108,30 @@ int main(int argc, char **argv) {
 
   ros::Rate r(20);
   while (ros::ok()) {
-    // Publish drone pose to tf
-    geometry_msgs::TransformStamped pose;
-    pose.transform.rotation.w = 1;
-    pose.transform.rotation.x = 0;
-    pose.transform.rotation.y = 0;
-    pose.transform.rotation.z = 0;
+    // Update planner map using current sensor footprint
+    const Map &map = planner.getMap();;
+    SensorFootprint footprint(x, y, theta);
+    unordered_set<int> viewed_cells;
+    footprint.computeViewedCells(viewed_cells, map);
+    unordered_map<int, CellStatus> new_cells;
+    for (unordered_set<int>::iterator it = viewed_cells.begin();
+         it != viewed_cells.end(); ++it) {
+      new_cells[*it] = ground_truth_map.getStatus(*it);
+    }
+    planner.updateMap(new_cells);
+    planner.computeNextStep(x, y, theta);
+    planner.updatePose(x, y, theta);
 
-    pose.transform.translation.x = 0;
-    pose.transform.translation.y = 0;
+    // Publish drone pose to tf
+    Eigen::Quaterniond drone_orientation = Eigen::AngleAxisd(theta, Eigen::Vector3d(0, 0, 1))*Eigen::AngleAxisd(-M_PI/2, Eigen::Vector3d(1, 0, 0));
+    geometry_msgs::TransformStamped pose;
+    pose.transform.rotation.w = drone_orientation.w();
+    pose.transform.rotation.x = drone_orientation.x();
+    pose.transform.rotation.y = drone_orientation.y();
+    pose.transform.rotation.z = drone_orientation.z();
+
+    pose.transform.translation.x = x;
+    pose.transform.translation.y = y;
     pose.transform.translation.z = 0;
 
     pose.header.stamp = ros::Time::now();
@@ -151,11 +172,13 @@ int main(int argc, char **argv) {
     */
 
     // Publish map
-    for (vector<visualization_msgs::Marker>::iterator it = marker_array.markers.begin();
-         it != marker_array.markers.end(); ++it) {
-      it->header.stamp = pose.header.stamp;
+    for (size_t i = 0; i < cells.size(); ++i) {
+      map.getCellPos(marker_array.markers[i].pose.position.x,
+                     marker_array.markers[i].pose.position.y,
+                     i);
+      marker_array.markers[i].color.a = map.getStatus(i) == OCCUPIED;
+      marker_array.markers[i].header.stamp = pose.header.stamp;
     }
-
     map_pub.publish(marker_array);
 
     r.sleep();

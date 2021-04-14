@@ -45,3 +45,7 @@ void Map::getCellPos(double &left, double &bottom, int index) const {
 void Map::setStatus(int index, CellStatus val) {
   cells[index] = val;
 }
+
+bool Map::inMap(double x, double y) {
+  return 0 <= x && x <= xdim && 0 <= y && y <= ydim;
+}

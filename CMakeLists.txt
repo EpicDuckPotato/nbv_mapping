@@ -128,6 +128,7 @@ add_library(planning OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_footprint.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/map.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/geometry.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/planner.cpp
 )
 
 ## Add cmake target dependencies of the library

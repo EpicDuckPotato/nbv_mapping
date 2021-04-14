@@ -80,6 +80,14 @@ class Map {
      */
     void setStatus(int index, CellStatus val);
 
+    /*
+     * inMap: checks if the given x, y coordinates are in the map
+     * ARGUMENTS
+     * x, y: coordinates to check
+     * RETURN: true if they're in the map, false if not
+     */
+    bool inMap(double x, double y);
+
   private:
     int rows;
     int cols;
