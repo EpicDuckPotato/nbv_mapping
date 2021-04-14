@@ -4,6 +4,8 @@
 
 using namespace std;
 
+enum CellStatus {FREE, OCCUPIED, UNMAPPED};
+
 /*
  * Note that this map begins at (x, y) = (0, 0). Calling functions on negative
  * coordinates results in undefined behavior
@@ -15,11 +17,9 @@ class Map {
      * ARGUMENTS
      * rows, cols: map size
      * cell_length: the map is a grid of square cells. What is each cell's side length?
-     * cells: vector of length rows*cols, where a 1 indicates that a cell is occupied by
-     * an obstacle, 0 indicates that a cell is free, and 2 indicates that we don't know
-     * whether the cell is occupied or free
+     * cells: vector of length rows*cols
      */
-    Map(int rows, int cols, double cell_length, const vector<int> &cells);
+    Map(int rows, int cols, double cell_length, const vector<CellStatus> &cells);
 
     /*
      * getMapIdx: returns the index into the cells vector corresponding to the given 
@@ -36,7 +36,7 @@ class Map {
      * x, y: coordinate
      * RETURN: cells[get_map_idx(x, y)]
      */
-    int getStatus(double x, double y) const;
+    CellStatus getStatus(double x, double y) const;
 
     /*
      * getStatus: returns the cell status corresponding to the given index
@@ -44,7 +44,7 @@ class Map {
      * index: index into cells vector
      * RETURN: cells[index]
      */
-    int getStatus(int index) const;
+    CellStatus getStatus(int index) const;
 
     /*
      * getCellLength: the map is a grid of square cells. What is each cell's side length?
@@ -72,12 +72,20 @@ class Map {
      */
     void getCellPos(double &left, double &bottom, int index) const;
 
+    /*
+     * setStatus: sets status of this cell
+     * ARGUMENTS
+     * index: index of cell
+     * val: new cell status
+     */
+    void setStatus(int index, CellStatus val);
+
   private:
     int rows;
     int cols;
     double cell_length;
     double xdim;
     double ydim;
-    vector<int> cells;
+    vector<CellStatus> cells;
 };
 #endif

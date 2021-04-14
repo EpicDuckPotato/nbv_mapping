@@ -1,9 +1,9 @@
 #include "map.h"
 
-Map::Map(int rows, int cols, double cell_length, const vector<int> &cells) : rows(rows),
-                                                                             cols(cols),
-                                                                             cell_length(cell_length),
-                                                                             cells(cells) {
+Map::Map(int rows, int cols, double cell_length, const vector<CellStatus> &cells) : rows(rows),
+                                                                                    cols(cols),
+                                                                                    cell_length(cell_length),
+                                                                                    cells(cells) {
   xdim = cell_length*cols;
   ydim = cell_length*rows;
 }
@@ -14,11 +14,11 @@ int Map::getMapIdx(double x, double y) const {
   return row*cols + col;
 }
 
-int Map::getStatus(double x, double y) const {
+CellStatus Map::getStatus(double x, double y) const {
   return cells[getMapIdx(x, y)];
 }
 
-int Map::getStatus(int index) const {
+CellStatus Map::getStatus(int index) const {
   return cells[index];
 }
 
@@ -40,4 +40,8 @@ void Map::getCellPos(double &left, double &bottom, int index) const {
   int col = index%cols;
   left = col*cell_length;
   bottom = row*cell_length;
+}
+
+void Map::setStatus(int index, CellStatus val) {
+  cells[index] = val;
 }

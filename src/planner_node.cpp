@@ -26,11 +26,11 @@ int main(int argc, char **argv) {
   // Store map into vector
   std::ifstream in;
   in.open(map_file);
-  vector<int> cells;
+  vector<CellStatus> cells;
   int element;
   if (in.is_open()) {
     while (in >> element) {
-      cells.push_back(element);
+      cells.push_back(element ? OCCUPIED : FREE);
     }
   }
   in.close();
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
     marker_array.markers[i].scale.y = 1.0;
     marker_array.markers[i].scale.z = 1.0;
     marker_array.markers[i].color.g = 1.0f;
-    marker_array.markers[i].color.a = ground_truth_map.getStatus(i);
+    marker_array.markers[i].color.a = ground_truth_map.getStatus(i) == OCCUPIED;
     marker_array.markers[i].id = i;
   }
 
