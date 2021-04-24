@@ -1,7 +1,7 @@
 #include "planner.h"
 #include "math.h"
 
-Planner::Planner(int maprows, int mapcols, double cell_length, double x, double y, double theta) : map(maprows, mapcols, cell_length, vector<CellStatus>(maprows*mapcols, UNMAPPED)), x(x), y(y), theta(theta) {
+Planner::Planner(int maprows, int mapcols, double cell_length, double x, double y, double theta, double sf_depth, double sf_width) : map(maprows, mapcols, cell_length, vector<CellStatus>(maprows*mapcols, UNMAPPED)), x(x), y(y), theta(theta), sf_depth(sf_depth), sf_width(sf_width) {
 }
 
 void Planner::updateMap(const unordered_map<int, CellStatus> &cells) {
@@ -30,7 +30,7 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   newy = y + dpos*sin(newtheta);
   unordered_set<int> viewed_cells;
 
-  SensorFootprint sensor_footprint(newx, newy, theta);
+  SensorFootprint sensor_footprint(newx, newy, theta, sf_depth, sf_width);
   sensor_footprint.computeViewedCells(viewed_cells, map);
 
   while ((!map.inMap(newx, newy) || viewed_cells.size() == 0) && abs(newtheta - theta) < turn_limit) {

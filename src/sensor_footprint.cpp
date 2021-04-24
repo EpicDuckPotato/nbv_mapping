@@ -3,15 +3,16 @@
 #include "geometry.h"
 #include <algorithm>
 
-SensorFootprint::SensorFootprint(double x, double y, double theta) {
+SensorFootprint::SensorFootprint(double x, double y, double theta,
+                                 double depth, double width) {
   xs[0] = x;  
   ys[0] = y;  
 
-  xs[1] = x + 2*cos(theta + M_PI/2) + cos(theta + M_PI);
-  ys[1] = y + 2*sin(theta + M_PI/2) + sin(theta + M_PI);
+  xs[1] = x + depth*cos(theta + M_PI/2) + width*cos(theta + M_PI)/2;
+  ys[1] = y + depth*sin(theta + M_PI/2) + width*sin(theta + M_PI)/2;
 
-  xs[2] = x + 2*cos(theta + M_PI/2) - cos(theta + M_PI);
-  ys[2] = y + 2*sin(theta + M_PI/2) - sin(theta + M_PI);
+  xs[2] = x + depth*cos(theta + M_PI/2) - width*cos(theta + M_PI)/2;
+  ys[2] = y + depth*sin(theta + M_PI/2) - width*sin(theta + M_PI)/2;
 } 
 
 void SensorFootprint::computeViewedCells(unordered_set<int> &viewed_cells,

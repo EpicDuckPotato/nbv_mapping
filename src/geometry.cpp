@@ -32,6 +32,13 @@ bool lineSegmentsIntersect(double x1i, double y1i, double x1f, double y1f,
 
   double det = a*d - b*c;
 
+  if (det == 0) {
+    // Segments are parallel. Even if they're collinear,
+    // this is practically not an intersection anyway, so just
+    // return false
+    return false;
+  }
+
   double lx = x1i - x2i;
   double ly = y1i - y2i;
 

@@ -23,8 +23,12 @@ int main(int argc, char **argv) {
 
   string map_file;
   double cube_length;
+  double sf_depth;
+  double sf_width;
   nh.getParam("map_file", map_file);
   nh.getParam("cube_length", cube_length);
+  nh.getParam("sf_depth", sf_depth);
+  nh.getParam("sf_width", sf_width);
 
   // Store map into vector
   std::ifstream in;
@@ -55,7 +59,7 @@ int main(int argc, char **argv) {
   double x = 0;
   double y = 0;
   double theta = 0;
-  Planner planner(maprows, mapcols, cube_length, x, y, theta);
+  Planner planner(maprows, mapcols, cube_length, x, y, theta, sf_depth, sf_width);
 
   // ROS stuff
   tf2_ros::TransformBroadcaster br;
@@ -110,7 +114,7 @@ int main(int argc, char **argv) {
   while (ros::ok()) {
     // Update planner map using current sensor footprint
     const Map &map = planner.getMap();;
-    SensorFootprint footprint(x, y, theta);
+    SensorFootprint footprint(x, y, theta, sf_depth, sf_width);
     unordered_set<int> viewed_cells;
     footprint.computeViewedCells(viewed_cells, map);
     unordered_map<int, CellStatus> new_cells;
