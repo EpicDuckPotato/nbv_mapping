@@ -93,6 +93,7 @@ void SensorFootprint::computeViewedCells(unordered_set<int> &viewed_cells,
 }
 
 bool SensorFootprint::containsPoint(double x, double y) {
+  // Algorithm from here: http://totologic.blogspot.com/2014/01/accurate-point-in-triangle-test.html
   double denom = (ys[1] - ys[2])*(xs[0] - xs[2]) + (xs[2] - xs[1])*(ys[0] - ys[2]);
   double a = ((ys[1] - ys[2])*(x - xs[2]) + (xs[2] - xs[1])*(y - ys[2])) / denom;
   if (a < 0 || a > 1) {
