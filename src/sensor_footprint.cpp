@@ -8,11 +8,11 @@ SensorFootprint::SensorFootprint(double x, double y, double theta,
   xs[0] = x;  
   ys[0] = y;  
 
-  xs[1] = x + depth*cos(theta + M_PI/2) + width*cos(theta + M_PI)/2;
-  ys[1] = y + depth*sin(theta + M_PI/2) + width*sin(theta + M_PI)/2;
+  xs[1] = x + depth*cos(theta) + width*cos(theta + M_PI/2)/2;
+  ys[1] = y + depth*sin(theta) + width*sin(theta + M_PI/2)/2;
 
-  xs[2] = x + depth*cos(theta + M_PI/2) - width*cos(theta + M_PI)/2;
-  ys[2] = y + depth*sin(theta + M_PI/2) - width*sin(theta + M_PI)/2;
+  xs[2] = x + depth*cos(theta) - width*cos(theta + M_PI/2)/2;
+  ys[2] = y + depth*sin(theta) - width*sin(theta + M_PI/2)/2;
 } 
 
 void SensorFootprint::computeViewedCells(unordered_set<int> &viewed_cells,
@@ -76,8 +76,8 @@ void SensorFootprint::computeViewedCells(unordered_set<int> &viewed_cells,
         double x1f = xs[tp1];
         double y1f = ys[tp1];
         for (int c = 0; c < 4; ++c) {
-          double x2i = cell_xs[t];
-          double y2i = cell_ys[t];
+          double x2i = cell_xs[c];
+          double y2i = cell_ys[c];
           int cp1 = (c + 1)%4;
           double x2f = cell_xs[cp1];
           double y2f = cell_ys[cp1];

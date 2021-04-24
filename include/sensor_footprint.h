@@ -7,13 +7,15 @@ class SensorFootprint {
   public:
     /*
      * CONSTRUCTOR: initializes the three points of the triangle
-     * indicating the sensor footprint using the given robot pose.
-     * The current implementation uses a triangle with 1 m height
-     * and 1 m base
+     * indicating the sensor footprint using the given robot pose
      * ARGUMENTS
      * x, y, theta: robot pose in meters and radians
+     * depth: depth of sensor footprint. In 3D, this would be the
+     # height of the cone
+     * width: width of sensor footprint. In 3D, this would be the
+     # cone diameter
      */
-    SensorFootprint(double x, double y, double theta);
+    SensorFootprint(double x, double y, double theta, double depth, double width);
 
     /*
      * computeViewedCells: determines which unmapped cells in the map

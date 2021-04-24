@@ -13,8 +13,11 @@ class Planner {
      * maprows, mapcols: map size
      * cell_length: side length of each cell in the map
      * x, y, theta: starting pose
+     * sf_depth, sf_width: sensor footprint dimensions. See sensor_footprint.h
+     * for more info
      */
-    Planner(int maprows, int mapcols, double cell_length, double x, double y, double theta);
+    Planner(int maprows, int mapcols, double cell_length, double x, double y, double theta,
+            double sf_depth, double sf_width);
 
     /*
      * updateMap: updates status of cells in the map
@@ -46,6 +49,8 @@ class Planner {
     double x;
     double y;
     double theta;
+    double sf_depth;
+    double sf_width;
 };
 
 #endif

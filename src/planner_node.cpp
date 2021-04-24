@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
     planner.updatePose(x, y, theta);
 
     // Publish drone pose to tf
-    Eigen::Quaterniond drone_orientation = Eigen::AngleAxisd(theta, Eigen::Vector3d(0, 0, 1))*Eigen::AngleAxisd(-M_PI/2, Eigen::Vector3d(1, 0, 0));
+    Eigen::Quaterniond drone_orientation = Eigen::AngleAxisd(theta - M_PI/2, Eigen::Vector3d(0, 0, 1))*Eigen::AngleAxisd(-M_PI/2, Eigen::Vector3d(1, 0, 0));
     geometry_msgs::TransformStamped pose;
     pose.transform.rotation.w = drone_orientation.w();
     pose.transform.rotation.x = drone_orientation.x();
@@ -156,16 +156,15 @@ int main(int argc, char **argv) {
     sensor_footprint_pub.publish(sensor_footprint);
 
     // Publish path
-    /*
     geometry_msgs::PoseStamped gpose;
-    gpose.pose.orientation.w = 1;
-    gpose.pose.orientation.x = 0;
-    gpose.pose.orientation.y = 0;
-    gpose.pose.orientation.z = 0;
+    gpose.pose.orientation.w = pose.transform.rotation.w;
+    gpose.pose.orientation.x = pose.transform.rotation.x;
+    gpose.pose.orientation.y = pose.transform.rotation.y;
+    gpose.pose.orientation.z = pose.transform.rotation.z;
 
-    gpose.pose.position.x = 0;
-    gpose.pose.position.y = 0;
-    gpose.pose.position.z = 0;
+    gpose.pose.position.x = pose.transform.translation.x;
+    gpose.pose.position.y = pose.transform.translation.y;
+    gpose.pose.position.z = pose.transform.translation.z;
 
     gpose.header.stamp = pose.header.stamp;
     gpose.header.frame_id = "drone_pose";
@@ -173,13 +172,14 @@ int main(int argc, char **argv) {
     path.poses.push_back(gpose);
     path.header.stamp = gpose.header.stamp;
     path_pub.publish(path);
-    */
 
     // Publish map
     for (size_t i = 0; i < cells.size(); ++i) {
       map.getCellPos(marker_array.markers[i].pose.position.x,
                      marker_array.markers[i].pose.position.y,
                      i);
+      marker_array.markers[i].pose.position.x += cube_length/2;
+      marker_array.markers[i].pose.position.y += cube_length/2;
       marker_array.markers[i].color.r = map.getStatus(i) == UNMAPPED;
       marker_array.markers[i].color.g = map.getStatus(i) == OCCUPIED;
       marker_array.markers[i].color.a = ground_truth_map.getStatus(i) == OCCUPIED;
