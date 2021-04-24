@@ -23,21 +23,8 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   double dtheta = M_PI/4;
   double dpos = 0.1;
   newx = x + dpos;
-  newy = y + 0.5*dpos;
-  return;
-  newtheta = theta;
-  newx = x + dpos*cos(newtheta);
-  newy = y + dpos*sin(newtheta);
-  unordered_set<int> viewed_cells;
-
-  SensorFootprint sensor_footprint(newx, newy, theta, sf_depth, sf_width);
-  sensor_footprint.computeViewedCells(viewed_cells, map);
-
-  while ((!map.inMap(newx, newy) || viewed_cells.size() == 0) && abs(newtheta - theta) < turn_limit) {
-    newtheta += dtheta;
-    newx = x + dpos*cos(newtheta);
-    newy = y + dpos*sin(newtheta);
-  }
+  newy = y + 0.51*dpos;
+  newtheta = M_PI;
 }
 
 const Map &Planner::getMap() {

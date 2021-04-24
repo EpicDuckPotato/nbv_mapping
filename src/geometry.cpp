@@ -26,9 +26,9 @@ void getBoxCorners(double &x1, double &y1,
 bool lineSegmentsIntersect(double x1i, double y1i, double x1f, double y1f,
                            double x2i, double y2i, double x2f, double y2f) {
   double a = x1f - x1i;
-  double b = x2f - x2i;
+  double b = x2i - x2f;
   double c = y1f - y1i;
-  double d = y2f - y2i;
+  double d = y2i - y2f;
 
   double det = a*d - b*c;
 
@@ -39,10 +39,10 @@ bool lineSegmentsIntersect(double x1i, double y1i, double x1f, double y1f,
     return false;
   }
 
-  double lx = x1i - x2i;
-  double ly = y1i - y2i;
+  double lx = x2i - x1i;
+  double ly = y2i - y1i;
 
-  double tx = -(d*lx - b*ly)/det;
-  double ty = (c*lx - a*ly)/det;
+  double tx = (d*lx - b*ly)/det;
+  double ty = (-c*lx + a*ly)/det;
   return 0 < tx && tx < 1 && 0 < ty && ty < 1;
 }
