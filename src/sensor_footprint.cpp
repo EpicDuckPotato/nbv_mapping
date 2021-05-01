@@ -30,7 +30,12 @@ void SensorFootprint::computeViewedCells(unordered_set<int> &viewed_cells,
       int index = map.getMapIdx(x, y);
 
       // If this cell is already mapped, skip it
-      if (map.getStatus(index) != 2) {
+      /*
+      if (map.getStatus(index) != UNMAPPED) {
+        continue;
+      }
+      */
+      if (viewed_cells.find(index) != viewed_cells.end()){
         continue;
       }
 

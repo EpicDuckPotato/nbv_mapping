@@ -6,6 +6,8 @@ Map::Map(int rows, int cols, double cell_length, const vector<CellStatus> &cells
                                                                                     cells(cells) {
   xdim = cell_length*cols;
   ydim = cell_length*rows;
+  X_ROI_R = 1.0; // currently set to arbitrary values
+  Y_ROI_R = 1.0;
 }
 
 int Map::getMapIdx(double x, double y) const {
@@ -48,4 +50,12 @@ void Map::setStatus(int index, CellStatus val) {
 
 bool Map::inMap(double x, double y) {
   return 0 <= x && x <= xdim && 0 <= y && y <= ydim;
+}
+
+void Map::getROI(double &left, double &right, double &bottom, double &top, double x, double y) const {
+  left = x - X_ROI_R;
+  right = x + X_ROI_R;
+  bottom = y + Y_ROI_R;
+  top = y - Y_ROI_R;
+
 }

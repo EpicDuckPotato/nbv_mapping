@@ -88,12 +88,16 @@ class Map {
      */
     bool inMap(double x, double y);
 
+    void getROI(double &left, double &right, double &bottom, double &top, double x, double y) const;
+
   private:
     int rows;
     int cols;
     double cell_length;
     double xdim;
     double ydim;
+    double X_ROI_R;
+    double Y_ROI_R;
     vector<CellStatus> cells;
 };
 #endif
