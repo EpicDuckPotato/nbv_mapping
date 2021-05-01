@@ -52,7 +52,15 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
       //Terminate exploration
   //σ ← ExtractBestPathSegment(nbest)
   //Delete T
-
+  int len = states_stack.size();
+  if (len != 0){
+    vector<double> state = states_stack.at(len - 1);
+    states_stack.pop_back();
+    newx = state.at(0);
+    newy = state.at(1);
+    newtheta = state.at(2);
+    return;
+  }
 
   Q qstart = Q(x, y, theta);
   SensorFootprint sf_start(x, y, theta, sf_depth, sf_width);
@@ -62,12 +70,12 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   kd_tree.insert(ps, qstart.state);
   double left, right, bottom, top;
   map.getROI(left, right, bottom, top, x, y);
-  int g_best = 0;
+  int g_best = 0; // why?
   Q qbest = qstart;
   Q qnew;
   // for k in 1 to K:
   while (counter < N_max || g_best == 0){
-    // sample a point qrand in config space
+    // sample a point qrand in config space, theta is d_theta
     Q qrand = sample_new(left, right, bottom, top);
     int gain;
     gain = extend(qrand, qnew, DIM);
@@ -81,9 +89,9 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
     if (counter > N_tol)
       break;
   }
-  // TODO back up best branch
-  // first step in the best branch
-  get_plan(newx, newy, newtheta, qnew, qstart);
+  // back up best branch
+  // and get first step in the best branch
+  get_plan(qbest, qstart);
 }
 
 bool Planner::isValidConfiguration(double x, double y) const {
@@ -95,6 +103,7 @@ bool Planner::isValidConfiguration(double x, double y) const {
   return false;
 }
 
+// the theta of the state is d_theta
 Q Planner::sample_new(double left, double right, double bottom, double top){
   vector<double> state;
   // x
@@ -102,7 +111,7 @@ Q Planner::sample_new(double left, double right, double bottom, double top){
   // y
   state.push_back(top + (bottom - top) * ((double)rand() / RAND_MAX));
   // theta
-  state.push_back(2*M_PI * ((double)rand() / RAND_MAX));
+  state.push_back(-DTHETA_MAX + DTHETA_MAX*2 * ((double)rand() / RAND_MAX));
   
   return Q(state);
 }
@@ -148,6 +157,8 @@ int Planner::extend(Q& q, Q& qnew, int numofDOFs){
   // TODO write custom distance function
   vector<double> qnear_state = kd_tree.kNNValue(q_point, 1);
   Q qnear = tree[qnear_state]; // look up qnear from map
+  q.state.at(2) += qnear.state.at(2); // recall the theta in q was d_theta
+  q.state.at(2) = process_angle(q.state.at(2));
   // if new_config(q, qnear, qnew) then
   // note: if trapped, new_config returns false, and gain is 0
   // i.e. gain = 0 iff no qnew is added to the tree
@@ -158,10 +169,6 @@ int Planner::extend(Q& q, Q& qnew, int numofDOFs){
     if (tree.count(qnew.state) == 0){
       gain = add_new(tree, kd_tree, qnew, qnear);
     }
-    double arr1[numofDOFs];
-    double arr2[numofDOFs];
-    vec_to_array(qnew.state, arr1, numofDOFs);
-    vec_to_array(q.state, arr2, numofDOFs);
   }
   return gain;
 }
@@ -181,30 +188,46 @@ vector<double> Planner::array_to_vector(double *arr, int arrLength){
   return vec;
 }
 
-bool Planner::new_config(Q& qfrom, Q& qto, Q& qnew, int numofDOFs){
+void Planner::wrap_around_theta(double& theta1, double& theta2){
+  if (theta1 - theta2 > M_PI){
+    theta1 -= 2*M_PI;
+  }
+  else if(theta2 - theta1 > M_PI){
+    theta2 -= 2*M_PI;
+  }
+}
+
+bool Planner::new_config(Q& qfrom_, Q& qto_, Q& qnew, int numofDOFs){
   // interpolate a line in config space from qfrom to qto
   // check each point on the line until invalid
+  Q qfrom = qfrom_;
+  Q qto = qto_;
   int i,j;
-  if(has_reached(qfrom.state, qto.state, numofDOFs)){
-      qnew = qto;
-      return true;
-  }
   int x_nos = (int)(fabs(qfrom.state.at(0) - qto.state.at(0)) / X_RES);
   int y_nos = (int)(fabs(qfrom.state.at(1) - qto.state.at(1)) / Y_RES);
-  // TODO wrap arround
-  int t_nos = (int)(fabs(qfrom.state.at(2) - qto.state.at(2)) / THETA_RES);
-  int numofsamples = MAX(MAX(x_nos, y_nos), t_nos);
+  // wrap arround
+  double from_theta = qfrom.state.at(2);
+  double to_theta = qto.state.at(2);
+  wrap_around_theta(from_theta, to_theta);
+  qfrom.state.at(2) = from_theta;
+  qto.state.at(2) = to_theta;
+  int t_nos = (int)(fabs(from_theta - to_theta) / THETA_RES);
+  int numofsamples = MAX(MAX(x_nos, y_nos), t_nos) + 1;
+  if (numofsamples < 2) // qto is essentially qfrom
+    return false;
   vector<double> state_frontier(numofDOFs);
   vector<double> state_frontier_prev(numofDOFs);
+  // numofsamples >= 2
   for (i = 0; i < numofsamples; i++){
     for(j = 0; j < numofDOFs; j++){
-      state_frontier.at(j) = qfrom.state.at(j) + ((double)(i)/(numofsamples-1))*(qto.state.at(j)- qfrom.state.at(j));
+      state_frontier.at(j) = qfrom.state.at(j) + (double)(i)*((qto.state.at(j)- qfrom.state.at(j))/(double)(numofsamples-1));
     }
 
     if(!isValidConfiguration(state_frontier.at(0), state_frontier.at(1)))
     {
       if (i == 1) // we're trapped
         return false;
+      state_frontier_prev.at(j) = process_angle(state_frontier_prev.at(j));
       qnew = Q(state_frontier_prev);
       return true;
     }
@@ -217,7 +240,7 @@ bool Planner::new_config(Q& qfrom, Q& qto, Q& qnew, int numofDOFs){
 }
 
 // when ta and tb are connected, call this
-void Planner::get_plan(double& newx, double& newy, double& newtheta, Q& qlast, Q& qstart){
+void Planner::get_plan(Q& qlast, Q& qstart){
   // find the path backward
   vector<double> key;
   Q qtmp = qlast;
@@ -225,28 +248,25 @@ void Planner::get_plan(double& newx, double& newy, double& newtheta, Q& qlast, Q
   std::set<vector<double>> waypoints_set;
   KDTree<DIM, vector<double>> kd_tree_new;
   Point<DIM> new_kd_pt;
-  while(1){
-    key = qtmp.prev_state;
-    qtmp = tree[key];
-    if (qtmp.state != qstart.state){
-      waypoints_vec.push_back(key);
-      waypoints_set.insert(key);
-      new_kd_pt = point_from_q(qtmp);
-      kd_tree_new.insert(new_kd_pt, key);
-    } else {
-      break;
+  if (qlast.state != qstart.state){
+    while(1){
+      key = qtmp.prev_state;
+      qtmp = tree[key];
+      if (qtmp.state != qstart.state){
+        waypoints_vec.push_back(key);
+        waypoints_set.insert(key);
+        new_kd_pt = point_from_q(qtmp);
+        kd_tree_new.insert(new_kd_pt, key);
+      } else {
+        break;
+      }
     }
   }
-  //printf("got half of the plan\n");
   reverse(waypoints_vec.begin(), waypoints_vec.end());
   waypoints_vec.push_back(qlast.state);
   waypoints_set.insert(qlast.state);
   new_kd_pt = point_from_q(qlast);
   kd_tree_new.insert(new_kd_pt, qlast.state);
-  vector<double> newwp = waypoints_vec.at(0);
-  newx = newwp.at(0);
-  newy = newwp.at(1);
-  newtheta = newwp.at(2);
 
   //  prune tree (back up best branch)
   kd_tree = kd_tree_new;
@@ -258,34 +278,50 @@ void Planner::get_plan(double& newx, double& newy, double& newtheta, Q& qlast, Q
       itr = std::next(itr);
   }
 
-  // interpolate between x y theta and newx newy newtheta
-  int total_steps = 0;
-  double distance;
-  int i,j;
-  int p;
-  int num_waypoints = waypoints_vec.size();
-  int numofsamples;
-  vector<vector<double>> plan_vec;
-  vector<double> vec1, vec2, vec_step;
-  // for each pair of waypoints
-  for (p = 0; p < num_waypoints-1; p++){
-    distance = 0;
-    vec1 = waypoints_vec.at(p);
-    vec2 = waypoints_vec.at(p+1);
-    // determine how to interpolate based on greatest d_theta
-    for (j = 0; j < numofDOFs; j++){
-      if(distance < fabs(vec1.at(j) - vec2.at(j)))
-        distance = fabs(vec1.at(j) - vec2.at(j));
-    }
-    numofsamples = (int)(distance/(M_PI/RES));
-    for (i = 0; i < numofsamples; i++){
-      vector<double> vec_step;
-      for(j = 0; j < numofDOFs; j++){
-        vec_step.push_back(vec1.at(j) + ((double)(i)/(numofsamples-1))*(vec2.at(j) - vec1.at(j)));
-      }
-      plan_vec.push_back(vec_step);
-    }   
-    total_steps += numofsamples; 
+  if (qlast.state == qstart.state){
+    states_stack.push_back(qlast.state);
+    return;
   }
+  vector<double> newwp = waypoints_vec.at(0);
+  // interpolate between x y theta and newwp
+  // bank the states
+  Q qfrom = qstart;
+  Q qto = Q(newwp);
+  int i,j;
+  int x_nos = (int)(fabs(qfrom.state.at(0) - qto.state.at(0)) / X_RES);
+  int y_nos = (int)(fabs(qfrom.state.at(1) - qto.state.at(1)) / Y_RES);
+  // wrap arround
+  double from_theta = qfrom.state.at(2);
+  double to_theta = qto.state.at(2);
+  wrap_around_theta(from_theta, to_theta);
+  qfrom.state.at(2) = from_theta;
+  qto.state.at(2) = to_theta;
+  int t_nos = (int)(fabs(from_theta - to_theta) / THETA_RES);
+  int numofsamples = MAX(MAX(x_nos, y_nos), t_nos) + 1;
+  if (numofsamples < 2) {
+    states_stack.push_back(qlast.state);
+    return;
+  }
+  // numofsamples >= 2
+  for (i = 0; i < numofsamples; i++){
+    vector<double> state_frontier(DIM);
+    for(j = 0; j < DIM; j++){
+      state_frontier.at(j) = qfrom.state.at(j) + (double)(i)*((qto.state.at(j)- qfrom.state.at(j))/(double)(numofsamples-1));
+      if (j == 2){
+        state_frontier.at(j) = process_angle(state_frontier.at(j));
+      }
+    }
+    states_stack.push_back(state_frontier);
+  }
+}
+
+// processed angles are in [0, 2*PI)
+double Planner::process_angle(double angle){
+  double angle_out = angle;
+  if (angle > 2*M_PI)
+    angle_out -= 2*M_PI;
+  else if (angle < 0)
+    angle_out += 2*M_PI;
+  return angle_out;
 }
 

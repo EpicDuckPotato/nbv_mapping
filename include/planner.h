@@ -63,6 +63,7 @@ class Planner {
     double x;
     double y;
     double theta;
+    vector<vector<double>> states_stack;
     double sf_depth;
     double sf_width;
 
@@ -80,6 +81,7 @@ class Planner {
     double X_RES = 0.1;
     double Y_RES = 0.05;
     double THETA_RES = M_PI/20;
+    double DTHETA_MAX = M_PI/4; // dtheta in [-pi/4, pi/4]
 
     Q sample_new(double left, double right, double bottom, double top);
     Point<DIM> point_from_q(Q& q);
@@ -89,11 +91,14 @@ class Planner {
     void vec_to_array(vector<double>& vec, double *arr, int arrLength);
     vector<double> array_to_vector(double *arr, int arrLength);
     bool new_config(Q& qfrom, Q& qto, Q& qnew, int numofDOFs);
-    void get_plan(double& newx, double& newy, double& newtheta, Q& qlast, Q& qstart);
+    void get_plan(Q& qlast, Q& qstart);
 
     bool isValidConfiguration(double x, double y) const;
 
     int updateGain(Q& qnew, Q& qprev);
+
+    double process_angle(double angle);
+    void wrap_around_theta(double& theta1, double& theta2);
 };
 
 #endif
