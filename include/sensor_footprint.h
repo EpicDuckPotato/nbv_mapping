@@ -18,7 +18,7 @@ class SensorFootprint {
     SensorFootprint(double x, double y, double theta, double depth, double width);
 
     /*
-     * computeViewedCells: determines which unmapped cells in the map
+     * computeViewedCells: determines the set of all viewed cells up till now
      * intersect with the sensor footprint 
      * ARGUMENTS
      * viewed_cells: populated with map indices of viewed cells

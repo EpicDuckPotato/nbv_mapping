@@ -15,6 +15,9 @@ SensorFootprint::SensorFootprint(double x, double y, double theta,
   ys[2] = y + depth*sin(theta) - width*sin(theta + M_PI/2)/2;
 } 
 
+// note: viewed_cells is all cells viewed up till now
+// this assumes that viewed_cells is prepopulated with the viewed_cells of its predecessor node
+// the map variable is not for checking whether a cell is mapped
 void SensorFootprint::computeViewedCells(unordered_set<int> &viewed_cells,
                                          const Map &map) {
   // Examine all cells intersecting bounding box

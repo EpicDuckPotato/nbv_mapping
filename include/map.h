@@ -86,9 +86,15 @@ class Map {
      * x, y: coordinates to check
      * RETURN: true if they're in the map, false if not
      */
-    bool inMap(double x, double y);
+    bool inMap(double x, double y) const;
 
-    void getROI(double &left, double &right, double &bottom, double &top, double x, double y) const;
+    /*
+     * getMapDim: get the extend of the map, left and bottom are 0
+     * ARGUMENTS
+     * x, y: coordinates to check
+     * RETURN: true if they're in the map, false if not
+     */
+    void getMapDim(double &xdim_, double &ydim_) const;
 
   private:
     int rows;
@@ -96,8 +102,6 @@ class Map {
     double cell_length;
     double xdim;
     double ydim;
-    double X_ROI_R;
-    double Y_ROI_R;
     vector<CellStatus> cells;
 };
 #endif

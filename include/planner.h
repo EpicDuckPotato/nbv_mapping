@@ -63,13 +63,16 @@ class Planner {
     double x;
     double y;
     double theta;
-    vector<vector<double>> states_stack;
     double sf_depth;
     double sf_width;
 
-    Map ground_truth_map;
-    // we store the trees using back pointers
-    // we use kd tree to find nn
+    /* we need this map for sensing */
+    // Map ground_truth_map;
+
+    /* 
+     * we store the trees using back pointers
+     * we use kd tree to find nn
+     */
     KDTree<DIM, vector<double>> kd_tree;
 
     int counter = 0;
@@ -77,27 +80,131 @@ class Planner {
     int N_tol = 100;
     Tree tree;
     Tree next_tree;
-    // currently set to arbitrary values
+    // interpolation resolution, currently set to arbitrary values
     double X_RES = 0.1;
     double Y_RES = 0.05;
     double THETA_RES = M_PI/20;
-    double DTHETA_MAX = M_PI/4; // dtheta in [-pi/4, pi/4]
+    // delta_theta between two steps is in range [-pi/4, pi/4)
+    double DTHETA_MAX = M_PI/4;
 
-    Q sample_new(double left, double right, double bottom, double top);
+    double EPS = 0.64; // distance squared. distance is 0.8m
+
+    /*
+     * sample_new: samples a new (x,y,dtheta), where dtheta is the the difference between the new theta and its predecessor's theta, which is currently unknown
+     * ARGUMENTS
+     * xdim, ydim: dimention of the map
+     * RETURN: new node 
+     */
+    Q sample_new(double xdim, double ydim);
+
+    /*
+     * point_from_q: converts a Q into kdtree-acceptable Point format
+     * ARGUMENTS
+     * q: the node to convert
+     * RETURN: the Point correspoinding to q.state
+     */
     Point<DIM> point_from_q(Q& q);
-    int add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear);
-    void print_vector(vector<double> vec);
-    int extend(Q& q, Q& qnew, int numofDOFs);
-    void vec_to_array(vector<double>& vec, double *arr, int arrLength);
-    vector<double> array_to_vector(double *arr, int arrLength);
-    bool new_config(Q& qfrom, Q& qto, Q& qnew, int numofDOFs);
-    void get_plan(Q& qlast, Q& qstart);
 
+    /*
+     * add_new: adds a new node to the tree and the kdtree, also compute the information gain
+     * ARGUMENTS
+     * t: the tree
+     * kd: the kdtree
+     * qnew, qnear: goal node and start node
+     * RETURN: the information gain after moving from qnear to qnew
+     */
+    int add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear);
+
+    /*
+     * print_vector: prints a vector for debugging
+     * ARGUMENTS
+     * vec: vector to be printed
+     */
+    void print_vector(vector<double> vec);
+
+    /*
+     * extend: tries to extend the tree to node q, fills out the actual extended node qnew, and computes the information gain
+     * ARGUMENTS
+     * q: extension target
+     * qnew: actual node extended 
+     * RETURN: the information gain after moving from qnear to qnew
+     */
+    int extend(Q& q, Q& qnew);
+
+    /*
+     * vec_to_array: turns a vector into an array
+     * ARGUMENTS
+     * vec: the source vector
+     * arr: the array to be filled out
+     * arrLength: length of the arr to be filled
+     */
+    void vec_to_array(vector<double>& vec, double *arr, int arrLength);
+
+    /*
+     * array_to_vector: turns an array into a vector
+     * ARGUMENTS
+     * the source vector
+     * arr: the source array
+     * arrLength: length of the arr
+     * RETURN: destination vector
+     */
+    vector<double> array_to_vector(double *arr, int arrLength);
+
+    /*
+     * new_config: tries to connect qfrom with qto, and fills out the actual extended node qnew
+     * ARGUMENTS
+     * qfrom, qto: start and goal of the connection process
+     * qnew: the actual extended node, or nothing if trapped
+     * RETURN: true if the connection process isn't trapped
+     */
+    bool new_config(Q& qfrom, Q& qto, Q& qnew);
+
+    /*
+     * get_plan: backtracks the best branch in the tree, saves it for the next exploration step, and fills out the next step
+     * ARGUMENTS
+     * newx, newy, newtheta: next step to take, which is the 1st waypoint after qstart in the best branch
+     * qlast, qstart: the last and the 1st nodes in the best branch
+     * RETURN: true if they're in the map, false if not
+     */
+    void get_plan(double &newx, double &newy, double &newtheta, Q& qlast, Q& qstart);
+
+    /*
+     * isValidConfiguration: checks if the given x, y coordinates are FREE
+     * ARGUMENTS
+     * x, y: coordinates to check
+     * RETURN: true if the cell is FREE, false if not
+     */
     bool isValidConfiguration(double x, double y) const;
 
+    /*
+     * inInRange: checks if two (x,y,theta) vectors are within sqrt(EPS) euclidean distance
+     * ARGUMENTS
+     * new_state, state: states to check
+     * RETURN: true if they're in range, false if not
+     */
+    bool isInRange(vector<double>& new_state, vector<double>& state);
+
+    /*
+     * updateGain: computes and fills out the TOTAL mapped cells up till we finished extending the tree from qprev to qnew. We also update the gain_cells for qnew. 
+     * ARGUMENTS
+     * qnew, qprev: previous node and newly added node
+     * RETURN: the information gain at qnew, which equals the size of qnew.gain_cells
+     */
     int updateGain(Q& qnew, Q& qprev);
 
+    /*
+     * process_angles: converts an angle in range [-2pi, 4pi) to the canonical range [0, 2pi)
+     * ARGUMENTS
+     * angle: source angle
+     * RETURN: destination angle
+     */
     double process_angle(double angle);
+
+    /*
+     * wrap_around_theta: changes the value of one of the input thetas such that abs(theta1-theta2) <= pi
+     * ARGUMENTS
+     * theta1, theta2: angles to wrap around
+     */
     void wrap_around_theta(double& theta1, double& theta2);
 };
 

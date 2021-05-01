@@ -13,26 +13,21 @@ class Q {
 public:
     vector<double> state;
     vector<double> prev_state;
-    unordered_set<int> gain_cells;
-    Q();
-    Q(vector<double> state_);
-    Q(double x_, double y_, double theta_);
+    unordered_set<int> gain_cells; // total cells gaind up till this node
+    Q(){}
+
+    Q(vector<double> state_){
+        state = state_;
+    }
+
+    Q(double x_, double y_, double theta_){
+        state.push_back(x_);
+        state.push_back(y_);
+        state.push_back(theta_);
+    }
 
     
 };
-
-Q::Q(){
-}
-
-Q::Q(vector<double> state_) {
-   state = state_;
-}
-
-Q::Q(double x_, double y_, double theta_) {
-    state.push_back(x_);
-    state.push_back(y_);
-    state.push_back(theta_);
-}
 
 
 typedef map<vector<double>, Q> Tree;
