@@ -11,25 +11,26 @@ class SensorFootprint {
      * ARGUMENTS
      * x, y, theta: robot pose in meters and radians
      * depth: depth of sensor footprint. In 3D, this would be the
-     # height of the cone
+     * height of the cone
      * width: width of sensor footprint. In 3D, this would be the
-     # cone diameter
+     * cone diameter
      */
     SensorFootprint(double x, double y, double theta, double depth, double width);
 
     /*
-     * computeViewedCells: determines the set of all viewed cells up till now
-     * intersect with the sensor footprint 
+     * computeVisibleCells: determines which cells the robot can definitely see right now.
+     * If a cell is behind an OCCUPIED cell, it is not inserted into the result
      * ARGUMENTS
-     * viewed_cells: populated with map indices of viewed cells
-     * footprint: sensor footprint
+     * visible_cells: populated with map indices of cells that are definitely visible
+     * map: map
      */
-    void computeViewedCells(unordered_set<int> &viewed_cells,
-                            const Map &map);
+    void computeVisibleCells(unordered_set<int> &visible_cells,
+                             const Map &map);
 
   private:
     array<double, 3> xs;
     array<double, 3> ys;
+    double width;
 
     /*
      * computeBoundingBox: gets the box that bounds the sensor footprint

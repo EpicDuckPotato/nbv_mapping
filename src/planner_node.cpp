@@ -115,14 +115,14 @@ int main(int argc, char **argv) {
     // Update planner map using current sensor footprint
     const Map &map = planner.getMap();;
     SensorFootprint footprint(x, y, theta, sf_depth, sf_width);
-    unordered_set<int> viewed_cells;
-    footprint.computeViewedCells(viewed_cells, map);
-    unordered_map<int, CellStatus> new_cells;
-    for (unordered_set<int>::iterator it = viewed_cells.begin();
-         it != viewed_cells.end(); ++it) {
-      new_cells[*it] = ground_truth_map.getStatus(*it);
+    unordered_set<int> visible_cells;
+    footprint.computeVisibleCells(visible_cells, ground_truth_map);
+    unordered_map<int, CellStatus> cell_stati;
+    for (unordered_set<int>::iterator it = visible_cells.begin();
+         it != visible_cells.end(); ++it) {
+      cell_stati[*it] = ground_truth_map.getStatus(*it);
     }
-    planner.updateMap(new_cells);
+    planner.updateMap(cell_stati);
     planner.computeNextStep(x, y, theta);
     planner.updatePose(x, y, theta);
 

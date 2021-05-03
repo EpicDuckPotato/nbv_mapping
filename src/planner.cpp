@@ -36,6 +36,12 @@ void Planner::updatePose(double x, double y, double theta) {
 }
 
 void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
+  double dtheta = M_PI/16;
+  double dpos = 0.1;
+  newx = x + dpos;
+  newy = y + 0.9*dpos;
+  newtheta = theta + dtheta;
+  return;
 
   //ξ0 ← current vehicle configuration
   //Initialize T with ξ0 and, unless first planner call, also previous best branch
@@ -56,7 +62,7 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   // TODO: 1st iteration? Proceeding iterations?
   Q qstart = Q(x, y, theta);
   SensorFootprint sf_start(x, y, theta, sf_depth, sf_width);
-  sf_start.computeViewedCells(qstart.gain_cells, map);
+  sf_start.computeVisibleCells(qstart.gain_cells, map);
   tree[qstart.state] = qstart;
   Point<DIM> ps = point_from_q(qstart);
   kd_tree.insert(ps, qstart.state);
@@ -128,7 +134,7 @@ int Planner::updateGain(Q& qnew, Q& qprev){
   vector<double> qnew_state = qnew.state;
   qnew.gain_cells = qprev.gain_cells;
   SensorFootprint sf_new(qnew_state.at(0), qnew_state.at(1), qnew_state.at(2), sf_depth, sf_width);
-  sf_new.computeViewedCells(qnew.gain_cells, map);
+  sf_new.computeVisibleCells(qnew.gain_cells, map);
   return qnew.gain_cells.size();
 }
 

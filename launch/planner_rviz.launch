@@ -4,7 +4,7 @@
     <node name="planner_node" pkg="nbv_mapping" type="planner_node" output="screen">
       <param name="map_file" value="$(find nbv_mapping)/config/$(arg map).txt"/>
       <param name="cube_length" value="1"/>
-      <param name="sf_depth" value="2"/>
-      <param name="sf_width" value="2"/>
+      <param name="sf_depth" value="4"/>
+      <param name="sf_width" value="4"/>
     </node>
 </launch>

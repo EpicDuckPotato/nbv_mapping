@@ -2,9 +2,10 @@
 #include <math.h>
 #include "geometry.h"
 #include <algorithm>
+#include <iostream>
 
 SensorFootprint::SensorFootprint(double x, double y, double theta,
-                                 double depth, double width) {
+                                 double depth, double width) : width(width) {
   xs[0] = x;  
   ys[0] = y;  
 
@@ -15,87 +16,83 @@ SensorFootprint::SensorFootprint(double x, double y, double theta,
   ys[2] = y + depth*sin(theta) - width*sin(theta + M_PI/2)/2;
 } 
 
-// note: viewed_cells is all cells viewed up till now
-// this assumes that viewed_cells is prepopulated with the viewed_cells of its predecessor node
-// the map variable is not for checking whether a cell is mapped
-void SensorFootprint::computeViewedCells(unordered_set<int> &viewed_cells,
-                                         const Map &map) {
-  // Examine all cells intersecting bounding box
-  double left;
-  double right;
-  double bottom;
-  double top;
-  computeBoundingBox(left, right, bottom, top);
-
+void SensorFootprint::computeVisibleCells(unordered_set<int> &visible_cells,
+                                          const Map &map) {
+  // Split the far end of the sensor footprint (i.e. the base of the cone) into
+  // segments with length at most map.getCellLength() (if they're longer,
+  // we might skip over cells). Cast a ray to the endpoints of each
+  // segment using digital differential analysis, stopping when we hit
+  // a cell that's UNMAPPED or OCCUPIED. The cell we stop on is the last
+  // cell we add to visible cells that's associated with this ray
   double cell_length = map.getCellLength();
-  for (double y = bottom; y <= top; y += cell_length) {
-    for (double x = left; x <= right; x += cell_length) {
-      int index = map.getMapIdx(x, y);
+  int segments = (int)((width + cell_length)/cell_length);
+  int samples = segments + 1;
+  for (int sample = 0; sample < samples; ++sample) {
+    double frac = sample/(double)segments;
+    double xend = xs[1] + frac*(xs[2] - xs[1]);
+    double yend = ys[1] + frac*(ys[2] - ys[1]);
 
-      // If this cell is already mapped, skip it
-      /*
-      if (map.getStatus(index) != UNMAPPED) {
-        continue;
+    double x = xs[0];
+    double y = ys[0];
+
+    double dispx = xend - x;
+    double dispy = yend - y;
+    double dist = sqrt(dispx*dispx + dispy*dispy);
+
+    double dydx = dispy/dispx;
+    double xhyp = sqrt(1 + dydx*dydx);
+    double dxdy = dispx/dispy;
+    double yhyp = sqrt(1 + dxdy*dxdy);
+
+    bool onlyx = yend == y;
+    bool onlyy = xend == x;
+
+    double xstep = (xend < x) ? -cell_length : cell_length;
+    double ystep = (yend < y) ? -cell_length : cell_length;
+
+    double left;
+    double right;
+    double bottom;
+    double top;
+    map.getCellExtent(left, right, bottom, top, map.getMapIdx(x, y));
+
+    double newx = (xstep < 0) ? left : right;
+    double newy = (ystep < 0) ? bottom : top;
+
+    double xray = abs(newx - x)*xhyp;
+    double yray = abs(newy - y)*yhyp;
+
+    int index = map.getMapIdx(x, y);
+    CellStatus status = map.getStatus(index); 
+
+    int end_idx = map.getMapIdx(xend, yend);
+
+    double raylen = 0;
+    while (index != end_idx && raylen < dist && 
+           status != OCCUPIED && status != UNMAPPED) {
+      if (onlyy || xray > yray) {
+        x += (newy - y)*dxdy;
+        y = newy;
+        raylen = yray;
+
+        newy += ystep;
+        yray += cell_length*yhyp;
+      } else if (onlyx || yray >= xray) {
+        y += (newx - x)*dydx;
+        x = newx;
+        raylen = xray;
+
+        newx += xstep;
+        xray += cell_length*xhyp;
       }
-      */
-      if (viewed_cells.find(index) != viewed_cells.end()){
-        continue;
+
+      if (!map.inMap(x, y)) {
+        break;
       }
 
-      double cell_left;
-      double cell_right;
-      double cell_bottom;
-      double cell_top;
-      map.getCellExtent(cell_left, cell_right, cell_bottom, cell_top, index);
-
-      // Check if any corner of this cell is inside the footprint
-      array<double, 4> cell_xs;
-      array<double, 4> cell_ys;
-      getBoxCorners(cell_xs[0], cell_ys[0],
-                    cell_xs[1], cell_ys[1],
-                    cell_xs[2], cell_ys[2],
-                    cell_xs[3], cell_ys[3],
-                    cell_left, cell_right, cell_bottom, cell_top);
-      if (containsPoint(cell_xs[0], cell_ys[0]) ||
-          containsPoint(cell_xs[1], cell_ys[1]) ||
-          containsPoint(cell_xs[2], cell_ys[2]) ||
-          containsPoint(cell_xs[3], cell_ys[3])) {
-        viewed_cells.insert(index);
-        continue;
-      }
-
-      // Check if any corner of the footprint is inside the cell
-      if (boxContainsPoint(xs[0], ys[0], cell_left, cell_right, cell_bottom, cell_top) || 
-          boxContainsPoint(xs[1], ys[1], cell_left, cell_right, cell_bottom, cell_top) ||
-          boxContainsPoint(xs[2], ys[2], cell_left, cell_right, cell_bottom, cell_top)) {
-        viewed_cells.insert(index);
-        continue;
-      }
-
-      // Check if any edge of the footprint intersects any edge of the cell
-
-      // Iterate over starting coordinate for footprint edge (ending coordinate is a given)
-      bool edges_intersect = false;
-      for (int t = 0; t < 3 && !edges_intersect; ++t) {
-        // Iterate over starting coordinate for cell edge (ending coordinate is a given)
-        double x1i = xs[t];
-        double y1i = ys[t];
-        int tp1 = (t + 1)%3;
-        double x1f = xs[tp1];
-        double y1f = ys[tp1];
-        for (int c = 0; c < 4; ++c) {
-          double x2i = cell_xs[c];
-          double y2i = cell_ys[c];
-          int cp1 = (c + 1)%4;
-          double x2f = cell_xs[cp1];
-          double y2f = cell_ys[cp1];
-          if (lineSegmentsIntersect(x1i, y1i, x1f, y1f, x2i, y2i, x2f, y2f)) {
-            viewed_cells.insert(index);
-            edges_intersect = true;
-            break;
-          }
-        }
-      }
+      index = map.getMapIdx(x, y);
+      visible_cells.insert(index);
+      status = map.getStatus(index); 
     }
   }
 }
