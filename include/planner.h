@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include "map.h"
+#include "tree.h"
 #include "sensor_footprint.h"
 #include <math.h>
 #include <iostream>
@@ -15,7 +16,7 @@
 #include <bits/stdc++.h>
 #include <chrono>
 #include <unistd.h>
-#include "tree.h"
+
 
 #define DIM 3
 
@@ -52,6 +53,7 @@ class Planner {
      */
     void computeNextStep(double &newx, double &newy, double &newtheta);
 
+
     /*
      * getMap: gets the map for visualization
      * RETURN: constant reference to map
@@ -75,9 +77,11 @@ class Planner {
      */
     KDTree<DIM, vector<double>> kd_tree;
 
+    int exploration_number = 0;
     int counter = 0;
     int N_max = 15;
     int N_tol = 100;
+    Q qstart;
     Tree tree;
     Tree next_tree;
     // interpolation resolution, currently set to arbitrary values
@@ -166,7 +170,7 @@ class Planner {
      * qlast, qstart: the last and the 1st nodes in the best branch
      * RETURN: true if they're in the map, false if not
      */
-    void get_plan(double &newx, double &newy, double &newtheta, Q& qlast, Q& qstart);
+    void get_plan(double &newx, double &newy, double &newtheta, Q& qlast);
 
     /*
      * isValidConfiguration: checks if the given x, y coordinates are FREE

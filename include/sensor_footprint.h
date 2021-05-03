@@ -2,6 +2,8 @@
 #define SENSOR_FOOTPRINT_H
 #include "map.h"
 #include <unordered_set>
+#include "tree.h"
+
 
 class SensorFootprint {
   public:
@@ -16,6 +18,16 @@ class SensorFootprint {
      * cone diameter
      */
     SensorFootprint(double x, double y, double theta, double depth, double width);
+
+
+    /*
+     * computeViewedCells: determines which unmapped cells in the map
+     * intersect with the sensor footprint 
+     * ARGUMENTS
+     * viewed_cells: populated with map indices of viewed cells
+     * footprint: sensor footprint
+     */
+    void computeViewedCells(Q& qnew, Q& qstart, Tree& tree, const Map &map);
 
     /*
      * computeVisibleCells: determines which cells the robot can definitely see right now.
