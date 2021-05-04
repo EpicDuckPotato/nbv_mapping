@@ -16,6 +16,7 @@ Q::Q(double x_, double y_, double theta_) {
     state.push_back(theta_);
 }
 
+
 bool check_if_viewed(int index, Q& qnew, Q& qstart, Tree& tree) {
   Q qtmp = qnew;
   vector<double> key;

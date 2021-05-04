@@ -126,6 +126,10 @@ class Planner {
      */
     void print_vector(vector<double> vec);
 
+    void print_tree();
+
+
+
     /*
      * extend: tries to extend the tree to node q, fills out the actual extended node qnew, and computes the information gain
      * ARGUMENTS

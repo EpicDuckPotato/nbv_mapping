@@ -61,7 +61,8 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   //Delete T
 
   // TODO: 1st iteration? Proceeding iterations?
-
+  cout <<"start exploration " << exploration_number << endl;
+  cout << x << ", " << y << ", " << theta<< endl;
   if (exploration_number == 0) {
     qstart = Q(x, y, theta);
     tree[qstart.state] = qstart;
@@ -80,6 +81,7 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   map.getMapDim(xdim, ydim);
   int g_best = qstart.gain;
   Q qbest = qstart;
+  //cout << "done initialization" << endl;
   // for k in 1 to K:
   while (counter < N_max || g_best == 0){
     Q qnew;
@@ -89,7 +91,9 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
     gain = extend(qrand, qnew);
     if (gain == 0) // we're trapped
       continue;
+    cout << "counter = " << counter << endl;
     counter += 1;
+    print_vector(qnew.state);
     if (gain > g_best){
       qbest = qnew;
       g_best = gain;
@@ -99,7 +103,11 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   }
   // back up best branch
   // and get first step in the best branch
+  print_vector(qbest.state);
+  cout << qbest.gain << endl;
   get_plan(newx, newy, newtheta, qbest);
+  counter = 0;
+  cout << "done" << endl;
 }
 
 bool Planner::isValidConfiguration(double x, double y) const {
@@ -150,6 +158,7 @@ int Planner::updateGain(Q& qnew, Q& qprev){
 
 // returns total gain up till now
 int Planner::add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear){
+  cout << "add_new..." << endl;
   qnew.prev_state = qnear.state;
   t[qnew.state] = qnew;
   int gain = updateGain(qnew, qnear);
@@ -159,6 +168,7 @@ int Planner::add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear
   // add to kd tree
   Point<DIM> new_kd_pt = point_from_q(qnew);
   kd.insert(new_kd_pt, qnew.state);
+  cout << "done add_new" << endl;
   return gain;
 }
 
@@ -169,25 +179,55 @@ void Planner::print_vector(vector<double> vec){
   printf("\n");
 }
 
+void Planner::print_tree(){
+  printf("tree: \n");
+  for(auto it = tree.begin(); it != tree.end(); ++it){
+    print_vector(it->first);
+    print_vector(it->second.state);
+    print_vector(it->second.prev_state);
+    printf("\n");
+  }
+  //printf("\n");
+}
+
+
+
+
 // find the nearest neighbor qnear of q and extend the tree t from qnear to q
 int Planner::extend(Q& q, Q& qnew){
+  //cout << "extend..." << endl;
+  //cout << q.state.size() << endl;
   Point<DIM> q_point = point_from_q(q);
   // TODO write custom distance function
   vector<double> qnear_state = kd_tree.kNNValue(q_point, 1);
   Q qnear = tree[qnear_state]; // look up qnear from map
+  if (qnear.state.size() < 3) {
+    cout << qnear.state.size() << endl;
+    print_vector(q.state);
+    print_vector(qnear_state);
+    print_tree();
+  }
   q.state.at(2) += qnear.state.at(2); // recall the theta in q was d_theta
   q.state.at(2) = process_angle(q.state.at(2));
   // if new_config(q, qnear, qnew) then
   // note: if trapped, new_config returns false, and gain is 0
   // i.e. gain = 0 iff qnew is NOT added to the tree
+  //print_vector(q.state);
+  //print_vector(qnear_state);
+  //cout << "ok" << endl;
   int gain = 0;
   if (new_config(qnear, q, qnew)){
+    //cout << "qnew added" << endl;
     // add qnew to tree and kd tree
     // ensure qnew isn't in tree
+    //cout << qnew.state.size() << endl;
     if (tree.count(qnew.state) == 0){
       gain = add_new(tree, kd_tree, qnew, qnear);
     }
+  } else {
+    //cout << "qnew NOT added" << endl;
   }
+  //cout << "done extend" << endl;
   return gain;
 }
 
@@ -218,6 +258,7 @@ void Planner::wrap_around_theta(double& theta1, double& theta2){
 bool Planner::new_config(Q& qfrom_, Q& qto_, Q& qnew){
   // interpolate a line in config space from qfrom to qto
   // check each point on the line until invalid
+  //cout << "new_config..." << endl;
   Q qfrom = qfrom_;
   Q qto = qto_;
   int i,j;
@@ -235,6 +276,7 @@ bool Planner::new_config(Q& qfrom_, Q& qto_, Q& qnew){
     return false;
   vector<double> state_frontier(DIM);
   vector<double> state_frontier_prev(DIM);
+  //cout << state_frontier.size()<< " " << state_frontier_prev.size() << endl;
   // numofsamples >= 2
   for (i = 0; i < numofsamples; i++){
     for(j = 0; j < DIM; j++){
@@ -245,7 +287,7 @@ bool Planner::new_config(Q& qfrom_, Q& qto_, Q& qnew){
     {
       if (i == 1) // we're trapped
         return false;
-      state_frontier_prev.at(j) = process_angle(state_frontier_prev.at(j));
+      state_frontier_prev.at(2) = process_angle(state_frontier_prev.at(2));
       qnew = Q(state_frontier_prev);
       return true;
     }
@@ -253,13 +295,14 @@ bool Planner::new_config(Q& qfrom_, Q& qto_, Q& qnew){
     state_frontier_prev = state_frontier;
   }    
   // we reached qto
-  qnew = qto;
+  qnew = qto_;
   return true;
 }
 
 
 void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
   // find the path backward
+  cout << "tree size: " << tree.size() << endl;
   vector<double> key;
   Q qtmp = qlast;
   vector<vector<double>> waypoints_vec;
@@ -295,6 +338,8 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
     newx = newwp.at(0);
     newy = newwp.at(1);
     newtheta = newwp.at(2);
+    cout << "waypoint sent to planner node: " << endl;
+    print_vector(newwp);
   }
 
   // Update tree and kdtree (back up best branch)
@@ -306,10 +351,10 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
     // then after the backup, the tree (and kd tree) is q1->q2->qlast
     // also update qstart to q1, with an updated set of gain_cells
     Q q1;
-    for (int i = 1; i < waypoints_vec.size(); i++){
+    for (int i = 0; i < waypoints_vec.size(); i++){
       vector<double> key = waypoints_vec.at(i);
       next_tree[key] = tree[key];
-      if (i == 1){
+      if (i == 0){
         q1 = tree[key];
       }
     }
@@ -323,7 +368,17 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
   next_tree.clear();
   // also update the exploration number
   exploration_number += 1;
-
+  
+  cout << "new tree size: " << tree.size() << endl;
+  /*
+  cout << "new qstart: " << endl;
+  print_vector(qstart.state);
+  print_vector(qstart.prev_state);
+  cout << "is qstart in tree?" << endl;
+  Q qtest = tree[qstart.state];
+  print_vector(qtest.state);
+  print_vector(qtest.prev_state);
+  */
 }
 
 // processed angles are in [0, 2*PI)
