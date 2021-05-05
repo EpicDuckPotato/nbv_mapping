@@ -110,6 +110,25 @@ int main(int argc, char **argv) {
   sensor_footprint.mesh_resource = "package://nbv_mapping/meshes/cone.stl";
   sensor_footprint.id = cells.size();
 
+  ros::Publisher branch_pub = nh.advertise<visualization_msgs::Marker>("/drone/best_branch", 1);
+  visualization_msgs::Marker branch_marker;
+  branch_marker.type = visualization_msgs::Marker::LINE_LIST;
+  branch_marker.action = visualization_msgs::Marker::ADD;
+  branch_marker.pose.position.x = 0;
+  branch_marker.pose.position.y = 0;
+  branch_marker.pose.position.z = 0;
+  branch_marker.pose.orientation.w = 1;
+  branch_marker.pose.orientation.x = 0;
+  branch_marker.pose.orientation.y = 0;
+  branch_marker.pose.orientation.z = 0;
+  branch_marker.scale.x = 0.1;
+  branch_marker.color.r = 1;
+  branch_marker.color.g = 0.7;
+  branch_marker.color.b = 0.26;
+  branch_marker.color.a = 1;
+  branch_marker.header.frame_id = "world";
+  branch_marker.ns = "planner_node";
+
   unordered_set<int> unmapped;
   for (int i = 0; i < cells.size(); ++i) {
     unmapped.insert(i);
@@ -196,6 +215,31 @@ int main(int argc, char **argv) {
       marker_array.markers[i].header.stamp = pose.header.stamp;
     }
     map_pub.publish(marker_array);
+
+    // Publish best branch
+    const Tree &tree = planner.getTree();
+    branch_marker.points.clear();
+    int p = 0;
+    for (Tree::const_iterator it = tree.begin(); it != tree.end(); ++it) {
+      Q q = it->second;
+      branch_marker.points.push_back(geometry_msgs::Point());
+      if (q.state.size() >= 2) {
+        branch_marker.points[p].x = q.state[0];
+        branch_marker.points[p].y = q.state[1];
+      }
+      branch_marker.points[p].z = 0;
+      ++p;
+      branch_marker.points.push_back(geometry_msgs::Point());
+
+      if (q.prev_state.size() >= 2) {
+        branch_marker.points[p].x = q.prev_state[0];
+        branch_marker.points[p].y = q.prev_state[1];
+      }
+      branch_marker.points[p].z = 0;
+      ++p;
+    }
+    branch_marker.header.stamp = pose.header.stamp;
+    branch_pub.publish(branch_marker);
 
     r.sleep();
     ros::spinOnce();
