@@ -82,6 +82,7 @@ class Planner {
     int N_max = 15;
     int N_tol = 100;
     Q qstart;
+    Q q_best;
     Tree tree;
     Tree next_tree;
     // interpolation resolution, currently set to arbitrary values
@@ -93,6 +94,8 @@ class Planner {
 
     double EPS = 0.64; // distance squared. distance is 0.8m
 
+    int stuck_time = 0;
+    int MAX_STUCK_TIME = 3;
     /*
      * sample_new: samples a new (x,y,dtheta), where dtheta is the the difference between the new theta and its predecessor's theta, which is currently unknown
      * ARGUMENTS
@@ -100,6 +103,9 @@ class Planner {
      * RETURN: new node 
      */
     Q sample_new(double xdim, double ydim);
+
+
+    Q sample_new(double left, double right, double bottom, double top);
 
     /*
      * point_from_q: converts a Q into kdtree-acceptable Point format
@@ -175,6 +181,11 @@ class Planner {
      * RETURN: true if they're in the map, false if not
      */
     void get_plan(double &newx, double &newy, double &newtheta, Q& qlast);
+
+
+    void get_random_move(double &newx, double& newy, double& newtheta, Q& qbest, double &xdim, double &ydim);
+
+    void get_Astar_move(double &newx, double& newy, double& newtheta, Q& qbest);
 
     /*
      * isValidConfiguration: checks if the given x, y coordinates are FREE

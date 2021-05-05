@@ -63,6 +63,9 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   // TODO: 1st iteration? Proceeding iterations?
   cout <<"start exploration " << exploration_number << endl;
   cout << x << ", " << y << ", " << theta<< endl;
+  srand(time(0));
+  int g_best;
+  Q qbest;
   if (exploration_number == 0) {
     qstart = Q(x, y, theta);
     tree[qstart.state] = qstart;
@@ -79,8 +82,14 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   tree[qstart.state] = qstart; // make sure the tree is up to date
   double xdim, ydim;
   map.getMapDim(xdim, ydim);
-  int g_best = qstart.gain;
-  Q qbest = qstart;
+  if (exploration_number == 0){
+    g_best = qstart.gain;
+    qbest = qstart;
+  }
+  else{
+    g_best = q_best.gain;
+    qbest = q_best;
+  }
   //cout << "done initialization" << endl;
   // for k in 1 to K:
   while (counter < N_max || g_best == 0){
@@ -105,9 +114,26 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   // and get first step in the best branch
   print_vector(qbest.state);
   cout << qbest.gain << endl;
-  get_plan(newx, newy, newtheta, qbest);
+
   counter = 0;
+
+  // we're stuck if qbest = qstart
+  // if the new tree size has been 1 for too long, we move randomely
+  // until the new tree size isn't 1
+  Q qstart_old = qstart;
+  get_plan(newx, newy, newtheta, qbest);
+  if (tree.size() <= 1) {
+    stuck_time += 1;
+  } else{
+    stuck_time = 0;
+  }
+  if (stuck_time > MAX_STUCK_TIME){
+    cout << "stuck!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+    get_random_move(newx, newy, newtheta, qstart_old, xdim, ydim);
+  }
+
   cout << "done" << endl;
+  exploration_number += 1;
 }
 
 bool Planner::isValidConfiguration(double x, double y) const {
@@ -139,6 +165,19 @@ Q Planner::sample_new(double xdim, double ydim){
   return Q(state);
 }
 
+// the theta of the state is d_theta
+Q Planner::sample_new(double left, double right, double bottom, double top){
+  vector<double> state;
+  // x
+  state.push_back(left + (right-left) * ((double)rand() / RAND_MAX));
+  // y
+  state.push_back(bottom + (top-bottom) * ((double)rand() / RAND_MAX));
+  // theta
+  state.push_back(-DTHETA_MAX + DTHETA_MAX*2 * ((double)rand() / RAND_MAX));
+  
+  return Q(state);
+}
+
 
 Point<DIM> Planner::point_from_q(Q& q){
   Point<DIM> q_point;
@@ -158,7 +197,7 @@ int Planner::updateGain(Q& qnew, Q& qprev){
 
 // returns total gain up till now
 int Planner::add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear){
-  cout << "add_new..." << endl;
+  //cout << "add_new..." << endl;
   qnew.prev_state = qnear.state;
   t[qnew.state] = qnew;
   int gain = updateGain(qnew, qnear);
@@ -168,7 +207,7 @@ int Planner::add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear
   // add to kd tree
   Point<DIM> new_kd_pt = point_from_q(qnew);
   kd.insert(new_kd_pt, qnew.state);
-  cout << "done add_new" << endl;
+  //cout << "done add_new" << endl;
   return gain;
 }
 
@@ -267,11 +306,12 @@ bool Planner::new_config(Q& qfrom_, Q& qto_, Q& qnew){
   // wrap arround
   double from_theta = qfrom.state.at(2);
   double to_theta = qto.state.at(2);
-  wrap_around_theta(from_theta, to_theta);
-  qfrom.state.at(2) = from_theta;
-  qto.state.at(2) = to_theta;
-  int t_nos = (int)(fabs(from_theta - to_theta) / THETA_RES);
-  int numofsamples = MAX(MAX(x_nos, y_nos), t_nos) + 1;
+  //wrap_around_theta(from_theta, to_theta);
+  //qfrom.state.at(2) = from_theta;
+  //qto.state.at(2) = to_theta;
+  //int t_nos = (int)(fabs(from_theta - to_theta) / THETA_RES);
+  //int numofsamples = MAX(MAX(x_nos, y_nos), t_nos) + 1;
+  int numofsamples = MAX(x_nos, y_nos) + 1;
   if (numofsamples < 2) // qto is essentially qfrom
     return false;
   vector<double> state_frontier(DIM);
@@ -279,7 +319,7 @@ bool Planner::new_config(Q& qfrom_, Q& qto_, Q& qnew){
   //cout << state_frontier.size()<< " " << state_frontier_prev.size() << endl;
   // numofsamples >= 2
   for (i = 0; i < numofsamples; i++){
-    for(j = 0; j < DIM; j++){
+    for(j = 0; j < DIM-1; j++){
       state_frontier.at(j) = qfrom.state.at(j) + (double)(i)*((qto.state.at(j)- qfrom.state.at(j))/(double)(numofsamples-1));
     }
 
@@ -287,7 +327,7 @@ bool Planner::new_config(Q& qfrom_, Q& qto_, Q& qnew){
     {
       if (i == 1) // we're trapped
         return false;
-      state_frontier_prev.at(2) = process_angle(state_frontier_prev.at(2));
+      state_frontier_prev.at(2) = to_theta;
       qnew = Q(state_frontier_prev);
       return true;
     }
@@ -366,8 +406,7 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
   }
   tree = next_tree;
   next_tree.clear();
-  // also update the exploration number
-  exploration_number += 1;
+  q_best = qlast;
   
   cout << "new tree size: " << tree.size() << endl;
   /*
@@ -379,6 +418,44 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
   print_vector(qtest.state);
   print_vector(qtest.prev_state);
   */
+}
+
+void Planner::get_random_move(double &newx, double& newy, double& newtheta, Q& qbest, double &xdim, double &ydim){
+  double tl_left, tl_right, tl_bottom, tl_top;
+  double br_left, br_right, br_bottom, br_top;
+  double x, y, theta;
+  x = qbest.state.at(0);
+  y = qbest.state.at(1);
+  theta = qbest.state.at(2);
+  map.getCellExtent(tl_left, tl_right, tl_bottom, tl_top, map.getMapIdx(MAX(0,x-map.getCellLength()), MIN(y+map.getCellLength(), ydim)));
+  map.getCellExtent(br_left, br_right, br_bottom, br_top, map.getMapIdx(MIN(xdim, x+map.getCellLength()), MAX(0, y-map.getCellLength())));
+  bool valid = false;
+  Q qrand;
+  while (!valid) {
+    qrand = sample_new(tl_left, br_right, br_bottom, tl_top);
+    if (isValidConfiguration(qrand.state.at(0), qrand.state.at(1)))
+      valid = true;
+  }
+  qrand.state.at(2) = process_angle(qrand.state.at(2) + qbest.state.at(2));
+  // back up tree and move
+  qrand.gain_cells = qbest.gain_cells;
+  qrand.gain = qbest.gain;
+  next_tree[qrand.state] = qrand;
+  KDTree<DIM, vector<double>> kd_tree_new;
+  Point<DIM> new_kd_pt = point_from_q(qrand);
+  kd_tree_new.insert(new_kd_pt, qrand.state);
+  kd_tree = kd_tree_new;
+  tree = next_tree;
+  next_tree.clear();
+  newx = qrand.state.at(0);
+  newy = qrand.state.at(1);
+  newtheta = qrand.state.at(2);
+  q_best = qrand;
+  qstart = qrand;
+}
+
+void Planner::get_Astar_move(double &newx, double& newy, double& newtheta, Q& qbest){
+  // run multigoal a*
 }
 
 // processed angles are in [0, 2*PI)
