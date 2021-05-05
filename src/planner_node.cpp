@@ -14,6 +14,8 @@
 #include "planner.h"
 #include "sensor_footprint.h"
 #include <Eigen/Dense>
+#include <chrono>
+using namespace std::chrono;
 
 using namespace std;
 
@@ -59,6 +61,8 @@ int main(int argc, char **argv) {
   double x = 0;
   double y = 0;
   double theta = 0;
+  double dist = 0;
+  double av_time = 0;
   Planner planner(maprows, mapcols, cube_length, x, y, theta, sf_depth, sf_width);
 
   // ROS stuff
@@ -134,6 +138,8 @@ int main(int argc, char **argv) {
     unmapped.insert(i);
   }
 
+  int steps = 0;
+
   ros::Rate r(20);
   while (ros::ok()) {
     // Update planner map using current sensor footprint
@@ -151,7 +157,18 @@ int main(int argc, char **argv) {
       break;
     }
     planner.updateMap(cell_stati);
+    double prevx = x;
+    double prevy = y;
+    auto start = high_resolution_clock::now();
     planner.computeNextStep(x, y, theta);
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<microseconds>(stop - start);
+    av_time += duration.count();
+    ++steps;
+    
+    double xdisp = x - prevx;
+    double ydisp = y - prevy;
+    dist += sqrt(xdisp*xdisp + ydisp*ydisp);
     planner.updatePose(x, y, theta);
 
     // Publish drone pose to tf
@@ -222,28 +239,31 @@ int main(int argc, char **argv) {
     int p = 0;
     for (Tree::const_iterator it = tree.begin(); it != tree.end(); ++it) {
       Q q = it->second;
-      branch_marker.points.push_back(geometry_msgs::Point());
-      if (q.state.size() >= 2) {
-        branch_marker.points[p].x = q.state[0];
-        branch_marker.points[p].y = q.state[1];
+      if (q.state.size() < 2 || q.prev_state.size() < 2) {
+        continue;
       }
+      branch_marker.points.push_back(geometry_msgs::Point());
+      branch_marker.points[p].x = q.state[0];
+      branch_marker.points[p].y = q.state[1];
       branch_marker.points[p].z = 0;
       ++p;
       branch_marker.points.push_back(geometry_msgs::Point());
 
-      if (q.prev_state.size() >= 2) {
-        branch_marker.points[p].x = q.prev_state[0];
-        branch_marker.points[p].y = q.prev_state[1];
-      }
+      branch_marker.points[p].x = q.prev_state[0];
+      branch_marker.points[p].y = q.prev_state[1];
       branch_marker.points[p].z = 0;
       ++p;
     }
     branch_marker.header.stamp = pose.header.stamp;
     branch_pub.publish(branch_marker);
 
+    cout << "Average planning time: " << av_time/steps << endl;
+
     r.sleep();
     ros::spinOnce();
   }
+
+  //cout << "Distance travelled: " << dist << endl;
 
   return 0;
 }
