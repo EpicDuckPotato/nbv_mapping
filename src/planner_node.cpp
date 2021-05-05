@@ -110,6 +110,11 @@ int main(int argc, char **argv) {
   sensor_footprint.mesh_resource = "package://nbv_mapping/meshes/cone.stl";
   sensor_footprint.id = cells.size();
 
+  unordered_set<int> unmapped;
+  for (int i = 0; i < cells.size(); ++i) {
+    unmapped.insert(i);
+  }
+
   ros::Rate r(20);
   while (ros::ok()) {
     // Update planner map using current sensor footprint
@@ -121,6 +126,10 @@ int main(int argc, char **argv) {
     for (unordered_set<int>::iterator it = visible_cells.begin();
          it != visible_cells.end(); ++it) {
       cell_stati[*it] = ground_truth_map.getStatus(*it);
+      unmapped.erase(*it);
+    }
+    if (unmapped.size() == 0) {
+      break;
     }
     planner.updateMap(cell_stati);
     planner.computeNextStep(x, y, theta);
