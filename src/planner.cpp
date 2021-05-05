@@ -427,8 +427,8 @@ void Planner::get_random_move(double &newx, double& newy, double& newtheta, Q& q
   x = qbest.state.at(0);
   y = qbest.state.at(1);
   theta = qbest.state.at(2);
-  map.getCellExtent(tl_left, tl_right, tl_bottom, tl_top, map.getMapIdx(MAX(0,x-map.getCellLength()), MIN(y+map.getCellLength(), ydim)));
-  map.getCellExtent(br_left, br_right, br_bottom, br_top, map.getMapIdx(MIN(xdim, x+map.getCellLength()), MAX(0, y-map.getCellLength())));
+  map.getCellExtent(tl_left, tl_right, tl_bottom, tl_top, map.getMapIdx(MAX(0,x-map.getCellLength()), MIN(y+map.getCellLength(), ydim-0.1)));
+  map.getCellExtent(br_left, br_right, br_bottom, br_top, map.getMapIdx(MIN(xdim-0.1, x+map.getCellLength()), MAX(0, y-map.getCellLength())));
   bool valid = false;
   Q qrand;
   while (!valid) {
