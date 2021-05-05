@@ -8,7 +8,7 @@ Panels:
         - /Path1
         - /Map1
         - /Sensor Footprint1
-        - /Sensor Footprint1/Status1
+        - /Best Branch1
       Splitter Ratio: 0.4651159942150116
     Tree Height: 804
   - Class: rviz/Selection
@@ -72,7 +72,7 @@ Visualization Manager:
       Marker Topic: /drone/map
       Name: Map
       Namespaces:
-        planner_node: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/TF
@@ -80,19 +80,13 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        drone_pose:
-          Value: true
-        world:
-          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        world:
-          drone_pose:
-            {}
+        {}
       Update Interval: 0
       Value: true
     - Class: rviz/Marker
@@ -100,7 +94,15 @@ Visualization Manager:
       Marker Topic: /drone/sensor_footprint
       Name: Sensor Footprint
       Namespaces:
-        planner_node: true
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /drone/best_branch
+      Name: Best Branch
+      Namespaces:
+        {}
       Queue Size: 100
       Value: true
   Enabled: true

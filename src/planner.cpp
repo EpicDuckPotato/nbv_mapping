@@ -592,3 +592,7 @@ double Planner::process_angle(double angle){
   return angle_out;
 }
 
+
+const Tree &Planner::getTree() {
+  return tree;
+}

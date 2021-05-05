@@ -60,6 +60,12 @@ class Planner {
      */
     const Map &getMap();
 
+    /*
+     * getTree: gets the best branch for visualization
+     * RETURN: constant reference to best branch
+     */
+    const Tree &getTree();
+
   private:
     Map map;
     double x;
