@@ -16,6 +16,7 @@
 
 
 Planner::Planner(int maprows, int mapcols, double cell_length, double x, double y, double theta, double sf_depth, double sf_width) : map(maprows, mapcols, cell_length, vector<CellStatus>(maprows*mapcols, UNMAPPED)), x(x), y(y), theta(theta), sf_depth(sf_depth), sf_width(sf_width) {
+  srand(time(0));
 }
 
 const Map &Planner::getMap() {
@@ -63,7 +64,20 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   // TODO: 1st iteration? Proceeding iterations?
   cout <<"start exploration " << exploration_number << endl;
   cout << x << ", " << y << ", " << theta<< endl;
-  srand(time(0));
+
+
+  if (banked_steps_stack.size() > 0){
+    cout << "popping step..." << endl;
+    /*
+    print_tree();
+    cout << "remaining steps: " << banked_steps_stack.size() << endl;
+    */
+    pop_from_step_bank(newx, newy, newtheta);
+    cout << newx << ", " << newy << ", " << newtheta << endl;
+    exploration_number += 1;
+    return;
+  }
+  bool big_tree = false;
   int g_best;
   Q qbest;
   if (exploration_number == 0) {
@@ -92,7 +106,17 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   }
   //cout << "done initialization" << endl;
   // for k in 1 to K:
-  while (counter < N_max || g_best == 0){
+  counter = 0;
+  cout << "gbest: " << g_best << ", qbest.gain: " << qbest.gain << ", qstart.gain: " << qstart.gain<< endl;
+  cout << "qstart: ";
+  print_vector(qstart.state);
+  cout << "qbest: ";
+  print_vector(qbest.state);
+  if (qstart.state != Q(x,y,theta).state){
+    cout << "bad" << endl;
+    exit(1);
+  }
+  while (counter < N_max || g_best <= qstart.gain){
     Q qnew;
     // sample a point qrand in config space, theta is d_theta
     Q qrand = sample_new(xdim, ydim);
@@ -101,22 +125,47 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
     if (gain == 0) // we're trapped
       continue;
     cout << "counter = " << counter << endl;
-    counter += 1;
     print_vector(qnew.state);
     if (gain > g_best){
+      cout << "here" << endl;
       qbest = qnew;
       g_best = gain;
     }
-    if (counter > N_tol)
+    if (counter > N_tol){
+      cout << " too many samples "<< endl;
+      exit(1);
       break;
+    }
+    counter += 1;
+  }
+  if (counter > N_max){
+    big_tree = true;
   }
   // back up best branch
   // and get first step in the best branch
+  cout << "qbest: ";
   print_vector(qbest.state);
   cout << qbest.gain << endl;
-
+/*
+  cout << "gbest: " << g_best << ", qbest.gain: " << qbest.gain << ", qstart.gain: " << qstart.gain<< endl;
+    cout << "qstart: ";
+    print_vector(qstart.state);
+    cout << "qbest: ";
+    print_vector(qbest.state);
+*/
   counter = 0;
 
+  // if big tree is true, we store all steps
+  if(big_tree){
+    cout << "here" << endl;
+    store_all_steps(newx, newy, newtheta, qbest);
+
+  } else {
+    get_plan(newx, newy, newtheta, qbest);
+  }
+  // otherwise we store the first step
+
+/*
   // we're stuck if qbest = qstart
   // if the new tree size has been 1 for too long, we move randomely
   // until the new tree size isn't 1
@@ -131,7 +180,7 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
     cout << "stuck!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
     get_random_move(newx, newy, newtheta, qstart_old, xdim, ydim);
   }
-
+*/
   cout << "done" << endl;
   exploration_number += 1;
 }
@@ -384,8 +433,15 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
 
   // Update tree and kdtree (back up best branch)
   kd_tree = kd_tree_new;
-  if (waypoints_vec.size() <= 1){
+  if (qlast.state == qstart.state){
+    if(qlast.gain != qstart.gain){
+      tree = next_tree;
+      next_tree.clear();
+      q_best = qstart;
+    }
     next_tree[waypoints_vec.at(0)] = qstart;
+    cout << "new tree size: 0 " << endl;
+    return;
   } else {
     // if a tree (and kd tree) is qstart->q1->q2->qlast,
     // then after the backup, the tree (and kd tree) is q1->q2->qlast
@@ -408,6 +464,7 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
   next_tree.clear();
   q_best = qlast;
   
+  
   cout << "new tree size: " << tree.size() << endl;
   /*
   cout << "new qstart: " << endl;
@@ -418,6 +475,73 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
   print_vector(qtest.state);
   print_vector(qtest.prev_state);
   */
+}
+
+void Planner::store_all_steps(double& newx, double& newy, double& newtheta, Q& qlast){
+  cout << "tree size: " << tree.size() << endl;
+  vector<double> key;
+  Q qtmp = qlast;
+  vector<vector<double>> waypoints_vec; // a stack
+  KDTree<DIM, vector<double>> kd_tree_new;
+  Point<DIM> new_kd_pt;
+  waypoints_vec.push_back(qlast.state);
+  if (qlast.state != qstart.state){
+    while(1){
+      key = qtmp.prev_state;
+      qtmp = tree[key];
+      if (qtmp.state != qstart.state){
+        waypoints_vec.push_back(key);
+      } else {
+        break;
+      }
+    }
+  }
+  // last .... fisrt step
+  cout << "banked size: " << waypoints_vec.size();
+  vector<double> newwp = waypoints_vec.back();
+  newx = newwp.at(0);
+  newy = newwp.at(1);
+  newtheta = newwp.at(2);
+  waypoints_vec.pop_back();
+  banked_steps_stack = waypoints_vec;
+  // update tree and kd
+  Q newwp_q = tree[newwp];
+  next_tree[newwp] = newwp_q;
+  cout << "newwp: ";
+  print_vector(newwp);
+  cout << "newwp_q: ";
+  print_vector(newwp_q.state);
+  tree = next_tree;
+  next_tree.clear();
+  new_kd_pt = point_from_q(newwp_q);
+  kd_tree_new.insert(new_kd_pt, newwp);
+  kd_tree = kd_tree_new;
+  qstart = newwp_q;
+  q_best = newwp_q;
+  //print_tree();
+}
+
+void Planner::pop_from_step_bank(double& newx, double& newy, double& newtheta){
+  KDTree<DIM, vector<double>> kd_tree_new;
+  Point<DIM> new_kd_pt;
+  vector<double> newwp = banked_steps_stack.back();
+  banked_steps_stack.pop_back();
+  newx = newwp.at(0);
+  newy = newwp.at(1);
+  newtheta = newwp.at(2);
+  // update tree and kd
+  Q newwp_q = Q(newx, newy, newtheta);
+  newwp_q.gain_cells = qstart.gain_cells;
+  newwp_q.gain = qstart.gain;
+  next_tree[newwp] = newwp_q;
+  tree = next_tree;
+  next_tree.clear();
+  new_kd_pt = point_from_q(newwp_q);
+  kd_tree_new.insert(new_kd_pt, newwp);
+  kd_tree = kd_tree_new;
+  qstart = newwp_q;
+  q_best = newwp_q;
+  //print_tree();
 }
 
 void Planner::get_random_move(double &newx, double& newy, double& newtheta, Q& qbest, double &xdim, double &ydim){

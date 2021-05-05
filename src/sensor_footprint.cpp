@@ -42,10 +42,10 @@ void SensorFootprint::computeViewedCells(Q& qnew, Q& qstart, Tree& tree,
       int index = map.getMapIdx(x, y);
 
       // If this cell is already mapped, skip it
-    /*  if (map.getStatus(index) != UNMAPPED) {
+      if (map.getStatus(index) != UNMAPPED) {
         continue;
       }
-    */
+    
 
       // if the cell is contained in the gain_cell of the previous nodes in the branch, skip it
       bool viewed = check_if_viewed(index, qnew, qstart, tree);

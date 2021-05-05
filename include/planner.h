@@ -76,11 +76,11 @@ class Planner {
      * we use kd tree to find nn
      */
     KDTree<DIM, vector<double>> kd_tree;
-
+    vector<vector<double>> banked_steps_stack;
     int exploration_number = 0;
     int counter = 0;
     int N_max = 15;
-    int N_tol = 100;
+    int N_tol = 100000;
     Q qstart;
     Q q_best;
     Tree tree;
@@ -181,6 +181,10 @@ class Planner {
      * RETURN: true if they're in the map, false if not
      */
     void get_plan(double &newx, double &newy, double &newtheta, Q& qlast);
+
+    void store_all_steps(double& newx, double& newy, double& newtheta, Q& qlast);
+
+    void pop_from_step_bank(double& newx, double& newy, double& newtheta);
 
 
     void get_random_move(double &newx, double& newy, double& newtheta, Q& qbest, double &xdim, double &ydim);

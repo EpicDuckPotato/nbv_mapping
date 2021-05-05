@@ -1,0 +1,27 @@
+Q qtmp = q_best;
+    vector<double> key;
+    vector<vector<double>> waypoints_vec;
+    if (q_best.state != qstart.state){
+      while(1){
+        key = qtmp.prev_state;
+        qtmp = tree[key];
+        if (qtmp.state != qstart.state){
+          waypoints_vec.push_back(key);
+        } else {
+          break;
+        }
+      }
+    }
+    reverse(waypoints_vec.begin(), waypoints_vec.end());
+    //if (q_best.state != qstart.state){
+    waypoints_vec.push_back(q_best.state);
+    //}
+    for (vector<vector<double>>::iterator it = waypoints_vec.begin();
+        it != waypoints_vec.end(); ++it){
+      tree[*it].gain_cells.clear();
+      SensorFootprint sf(tree[*it].state[0], tree[*it].state[1], tree[*it].state[2], sf_depth, sf_width);
+      sf.computeViewedCells(tree[*it], tree[waypoints_vec[0]], tree, map);
+    }
+    qstart = tree[waypoints_vec[0]];
+    cout << "qstart 0" << endl;
+    print_vector(qstart.state);
