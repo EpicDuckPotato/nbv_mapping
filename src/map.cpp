@@ -47,7 +47,7 @@ void Map::setStatus(int index, CellStatus val) {
 }
 
 bool Map::inMap(double x, double y) const {
-  return 0 <= x && x <= xdim && 0 <= y && y <= ydim;
+  return 0 <= x && x < xdim && 0 <= y && y < ydim;
 }
 
 void Map::getMapDim(double &xdim_, double &ydim_) const {
