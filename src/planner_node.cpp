@@ -182,7 +182,8 @@ int main(int argc, char **argv) {
       marker_array.markers[i].pose.position.y += cube_length/2;
       marker_array.markers[i].color.r = map.getStatus(i) == UNMAPPED;
       marker_array.markers[i].color.g = map.getStatus(i) == OCCUPIED;
-      marker_array.markers[i].color.a = ground_truth_map.getStatus(i) == OCCUPIED;
+      marker_array.markers[i].color.b = map.getStatus(i) == FREE;
+      marker_array.markers[i].color.a = (ground_truth_map.getStatus(i) == OCCUPIED) ? 1 : 0.25;
       marker_array.markers[i].header.stamp = pose.header.stamp;
     }
     map_pub.publish(marker_array);
