@@ -193,10 +193,7 @@ double Planner::updateGain(Q& qnew, Q& qprev){
       qnew.gain_cells.insert(*it);
     }
   }
-  double dispx = qnew.state[0] - qprev.state[0];
-  double dispy = qnew.state[1] - qprev.state[1];
-  double cost = sqrt(dispx*dispx + dispy*dispy);
-  qnew.gain = qnew.gain_cells.size()*exp(-4*cost) + qprev.gain;
+  qnew.gain = qnew.gain_cells.size()*exp(-0.05*qnew.path_length) + qprev.gain;
   return qnew.gain;
 }
 
@@ -204,6 +201,11 @@ double Planner::updateGain(Q& qnew, Q& qprev){
 double Planner::add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear){
   qnew.prev_state = qnear.state;
   t[qnew.state] = qnew;
+
+  double dispx = qnew.state[0] - qnew.prev_state[0];
+  double dispy = qnew.state[1] - qnew.prev_state[1];
+  tree[qnew.state].path_length = qnear.path_length + sqrt(dispx*dispx + dispy*dispy);
+
   double gain = updateGain(tree[qnew.state], qnear);
   // add to kd tree
   Point<DIM> new_kd_pt = point_from_q(qnew);
@@ -338,11 +340,9 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
 
   reverse(waypoints_vec.begin(), waypoints_vec.end());
 
-  cout << "getting new" << endl;
   newx = waypoints_vec[0][0];
   newy = waypoints_vec[0][1];
   newtheta = waypoints_vec[0][2];
-  cout << "done getting new" << endl;
 
   // Update tree and kdtree (back up best branch)
   kd_tree = kd_tree_new;

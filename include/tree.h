@@ -14,6 +14,7 @@ using namespace std;
 class Q {
 public:
     double gain; // total gain up till this node
+    double path_length;
     vector<double> state;
     vector<double> prev_state;
     unordered_set<int> gain_cells; // newly gained cells gaind at node
