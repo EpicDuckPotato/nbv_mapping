@@ -50,8 +50,9 @@ class Planner {
      * computeNextStep: computes next pose
      * ARGUMENTS
      * newx, newy, newtheta: populated with new pose
+     * RETURN: true if we think we're done mapping the whole area, false otherwise
      */
-    void computeNextStep(double &newx, double &newy, double &newtheta);
+    bool computeNextStep(double &newx, double &newy, double &newtheta);
 
 
     /*
@@ -86,9 +87,9 @@ class Planner {
     int exploration_number = 0;
     int counter = 0;
     int N_max = 15;
-    int N_tol = 100000;
+    int N_tol = 10000;
     Q qstart;
-    Q q_best;
+    Q qbest;
     Tree tree;
     Tree next_tree;
     // interpolation resolution, currently set to arbitrary values
@@ -187,15 +188,6 @@ class Planner {
      * RETURN: true if they're in the map, false if not
      */
     void get_plan(double &newx, double &newy, double &newtheta, Q& qlast);
-
-    void store_all_steps(double& newx, double& newy, double& newtheta, Q& qlast);
-
-    void pop_from_step_bank(double& newx, double& newy, double& newtheta);
-
-
-    void get_random_move(double &newx, double& newy, double& newtheta, Q& qbest, double &xdim, double &ydim);
-
-    void get_Astar_move(double &newx, double& newy, double& newtheta, Q& qbest);
 
     /*
      * isValidConfiguration: checks if the given x, y coordinates are FREE
