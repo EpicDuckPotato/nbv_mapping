@@ -13,7 +13,7 @@ using namespace std;
 // data structure to store each config
 class Q {
 public:
-    int gain; // total gain up till this node
+    double gain; // total gain up till this node
     vector<double> state;
     vector<double> prev_state;
     unordered_set<int> gain_cells; // newly gained cells gaind at node

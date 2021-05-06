@@ -64,7 +64,7 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   // TODO: 1st iteration? Proceeding iterations?
   cout <<"start exploration " << exploration_number << endl;
 
-  int gbest;
+  double gbest;
   Q qbest_tmp;
 
   qstart = Q(x, y, theta);
@@ -112,7 +112,7 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
     Q qnew;
     // sample a point qrand in config space, theta is d_theta
     Q qrand = sample_new(xdim, ydim);
-    int gain = extend(qrand, qnew);
+    double gain = extend(qrand, qnew);
     if (gain >= gbest){
       qbest_tmp = qnew;
       gbest = gain;
@@ -182,7 +182,7 @@ Point<DIM> Planner::point_from_q(Q& q){
 
 // compute gain (TOTAL # mapped cells up till now) and 
 // and add ONLY the newly viewed cells into the gain_cell set
-int Planner::updateGain(Q& qnew, Q& qprev){
+double Planner::updateGain(Q& qnew, Q& qprev){
   SensorFootprint sf_new(qnew.state[0], qnew.state[1], qnew.state[2], sf_depth, sf_width);
 
   unordered_set<int> visible_cells;
@@ -193,15 +193,18 @@ int Planner::updateGain(Q& qnew, Q& qprev){
       qnew.gain_cells.insert(*it);
     }
   }
-  qnew.gain = qnew.gain_cells.size() + qprev.gain;
+  double dispx = qnew.state[0] - qprev.state[0];
+  double dispy = qnew.state[1] - qprev.state[1];
+  double cost = sqrt(dispx*dispx + dispy*dispy);
+  qnew.gain = qnew.gain_cells.size()*exp(-4*cost) + qprev.gain;
   return qnew.gain;
 }
 
 // returns total gain up till now
-int Planner::add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear){
+double Planner::add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear){
   qnew.prev_state = qnear.state;
   t[qnew.state] = qnew;
-  int gain = updateGain(tree[qnew.state], qnear);
+  double gain = updateGain(tree[qnew.state], qnear);
   // add to kd tree
   Point<DIM> new_kd_pt = point_from_q(qnew);
   kd.insert(new_kd_pt, qnew.state);
@@ -230,7 +233,7 @@ void Planner::print_tree(){
 
 
 // find the nearest neighbor qnear of q and extend the tree t from qnear to q
-int Planner::extend(Q& q, Q& qnew){
+double Planner::extend(Q& q, Q& qnew){
   Point<DIM> q_point = point_from_q(q);
   // TODO write custom distance function
   vector<double> qnear_state = kd_tree.kNNValue(q_point, 1);
@@ -241,7 +244,7 @@ int Planner::extend(Q& q, Q& qnew){
   // if new_config(q, qnear, qnew) then
   // note: if trapped, new_config returns false, and gain is 0
   // i.e. gain = 0 iff qnew is NOT added to the tree
-  int gain = 0;
+  double gain = 0;
   if (new_config(qnear, q, qnew)){
     if (tree.count(qnew.state) == 0){
       gain = add_new(tree, kd_tree, qnew, qnear);

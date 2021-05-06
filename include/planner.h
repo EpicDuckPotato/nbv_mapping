@@ -130,7 +130,7 @@ class Planner {
      * qnew, qnear: goal node and start node
      * RETURN: the information gain after moving from qnear to qnew
      */
-    int add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear);
+    double add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear);
 
     /*
      * print_vector: prints a vector for debugging
@@ -150,7 +150,7 @@ class Planner {
      * qnew: actual node extended 
      * RETURN: the information gain after moving from qnear to qnew
      */
-    int extend(Q& q, Q& qnew);
+    double extend(Q& q, Q& qnew);
 
     /*
      * vec_to_array: turns a vector into an array
@@ -211,7 +211,7 @@ class Planner {
      * qnew, qprev: previous node and newly added node
      * RETURN: the information gain at qnew, which equals the size of qnew.gain_cells
      */
-    int updateGain(Q& qnew, Q& qprev);
+    double updateGain(Q& qnew, Q& qprev);
 
     /*
      * process_angles: converts an angle in range [-2pi, 4pi) to the canonical range [0, 2pi)
