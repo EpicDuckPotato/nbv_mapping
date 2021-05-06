@@ -160,7 +160,9 @@ int main(int argc, char **argv) {
     double prevx = x;
     double prevy = y;
     auto start = high_resolution_clock::now();
-    planner.computeNextStep(x, y, theta);
+    if (planner.computeNextStep(x, y, theta)) {
+      break;
+    }
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<microseconds>(stop - start);
     av_time += duration.count();

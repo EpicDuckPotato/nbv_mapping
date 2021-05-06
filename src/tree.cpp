@@ -21,8 +21,7 @@ bool check_if_viewed(int index, Q& qnew, Q& qstart, Tree& tree) {
   Q qtmp = qnew;
   vector<double> key;
   while (qtmp.state != qstart.state){
-    key = qtmp.prev_state;
-    qtmp = tree[key];
+    qtmp = tree[qtmp.prev_state];
     if (qtmp.gain_cells.find(index) != qtmp.gain_cells.end()){
       return true;
     }

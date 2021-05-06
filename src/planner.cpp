@@ -36,7 +36,7 @@ void Planner::updatePose(double x, double y, double theta) {
   this->theta = theta;
 }
 
-void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
+bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   /*
   double dtheta = M_PI/16;
   double dpos = 0.1;
@@ -63,126 +63,71 @@ void Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
 
   // TODO: 1st iteration? Proceeding iterations?
   cout <<"start exploration " << exploration_number << endl;
-  cout << x << ", " << y << ", " << theta<< endl;
 
+  int gbest;
+  Q qbest_tmp;
 
-  if (banked_steps_stack.size() > 0){
-    cout << "popping step..." << endl;
-    /*
-    print_tree();
-    cout << "remaining steps: " << banked_steps_stack.size() << endl;
-    */
-    pop_from_step_bank(newx, newy, newtheta);
-    cout << newx << ", " << newy << ", " << newtheta << endl;
-    exploration_number += 1;
-    return;
-  }
-  bool big_tree = false;
-  int g_best;
-  Q qbest;
-  if (exploration_number == 0) {
-    qstart = Q(x, y, theta);
-    tree[qstart.state] = qstart;
-    Point<DIM> ps = point_from_q(qstart);
-    kd_tree.insert(ps, qstart.state);
-  } else {
-    // we always prepared new qstart at then end of last run
-    // and the new qstart is already in the new tree and kdtree
-    // and the qstart carries the whole gain_cells of its previous branch
-  }
+  qstart = Q(x, y, theta);
+  qstart.prev_state.clear();
+  qstart.prev_state.push_back(x);
+  qstart.prev_state.push_back(y);
+  qstart.prev_state.push_back(theta);
+  tree[qstart.state] = qstart;
+  Point<DIM> ps = point_from_q(qstart);
+  kd_tree.insert(ps, qstart.state);
+
   SensorFootprint sf_start(x, y, theta, sf_depth, sf_width);
-  // update qstart.gain_cells and qstart.gain
-  sf_start.computeViewedCells(qstart, qstart, tree, map);
-  tree[qstart.state] = qstart; // make sure the tree is up to date
+
+  if (tree.size() > 1) {
+    Q qtmp = qbest;
+    vector<vector<double>> waypoints_vec;
+    while (qtmp.state != qtmp.prev_state) {
+      waypoints_vec.push_back(qtmp.state);
+      qtmp = tree[qtmp.prev_state];
+    }
+    tree[qtmp.state].prev_state = qstart.state;
+    waypoints_vec.push_back(qtmp.state);
+
+    if (qtmp.state != qstart.state) {
+      waypoints_vec.push_back(qstart.state);
+    }
+
+    for (int i = waypoints_vec.size() - 2; i >= 0; --i) {
+      tree[waypoints_vec[i]].gain = 0;
+      tree[waypoints_vec[i]].gain_cells.clear();
+      updateGain(tree[waypoints_vec[i]], tree[waypoints_vec[i + 1]]);
+    }
+    qbest = tree[waypoints_vec[0]];
+    gbest = qbest.gain;
+    qbest_tmp = qbest;
+  } else {
+    gbest = qstart.gain;
+    qbest_tmp = qstart;
+  }
+
   double xdim, ydim;
   map.getMapDim(xdim, ydim);
-  if (exploration_number == 0){
-    g_best = qstart.gain;
-    qbest = qstart;
-  }
-  else{
-    g_best = q_best.gain;
-    qbest = q_best;
-  }
-  //cout << "done initialization" << endl;
-  // for k in 1 to K:
-  counter = 0;
-  cout << "gbest: " << g_best << ", qbest.gain: " << qbest.gain << ", qstart.gain: " << qstart.gain<< endl;
-  cout << "qstart: ";
-  print_vector(qstart.state);
-  cout << "qbest: ";
-  print_vector(qbest.state);
-  if (qstart.state != Q(x,y,theta).state){
-    cout << "bad" << endl;
-    exit(1);
-  }
-  while (counter < N_max || g_best <= qstart.gain){
+
+  while (tree.size() < N_max || gbest == 0){
     Q qnew;
     // sample a point qrand in config space, theta is d_theta
     Q qrand = sample_new(xdim, ydim);
-    int gain;
-    gain = extend(qrand, qnew);
-    if (gain == 0) // we're trapped
-      continue;
-    cout << "counter = " << counter << endl;
-    print_vector(qnew.state);
-    if (gain > g_best){
-      cout << "here" << endl;
-      qbest = qnew;
-      g_best = gain;
+    int gain = extend(qrand, qnew);
+    if (gain >= gbest){
+      qbest_tmp = qnew;
+      gbest = gain;
     }
-    if (counter > N_tol){
-      cout << " too many samples "<< endl;
-      exit(1);
-      break;
+    if (tree.size() > N_tol){
+      cout << "assume area is fully mapped"<< endl;
+      return true;
     }
-    counter += 1;
   }
-  if (counter > N_max){
-    big_tree = true;
-  }
-  // back up best branch
-  // and get first step in the best branch
-  cout << "qbest: ";
-  print_vector(qbest.state);
-  cout << qbest.gain << endl;
-/*
-  cout << "gbest: " << g_best << ", qbest.gain: " << qbest.gain << ", qstart.gain: " << qstart.gain<< endl;
-    cout << "qstart: ";
-    print_vector(qstart.state);
-    cout << "qbest: ";
-    print_vector(qbest.state);
-*/
-  counter = 0;
 
-  // if big tree is true, we store all steps
-  if(big_tree){
-    cout << "here" << endl;
-    store_all_steps(newx, newy, newtheta, qbest);
+  cout << "getting plan" << endl;
+  get_plan(newx, newy, newtheta, qbest_tmp);
 
-  } else {
-    get_plan(newx, newy, newtheta, qbest);
-  }
-  // otherwise we store the first step
-
-/*
-  // we're stuck if qbest = qstart
-  // if the new tree size has been 1 for too long, we move randomely
-  // until the new tree size isn't 1
-  Q qstart_old = qstart;
-  get_plan(newx, newy, newtheta, qbest);
-  if (tree.size() <= 1) {
-    stuck_time += 1;
-  } else{
-    stuck_time = 0;
-  }
-  if (stuck_time > MAX_STUCK_TIME){
-    cout << "stuck!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-    get_random_move(newx, newy, newtheta, qstart_old, xdim, ydim);
-  }
-*/
-  cout << "done" << endl;
   exploration_number += 1;
+  return false;
 }
 
 bool Planner::isValidConfiguration(double x, double y) const {
@@ -238,25 +183,28 @@ Point<DIM> Planner::point_from_q(Q& q){
 // compute gain (TOTAL # mapped cells up till now) and 
 // and add ONLY the newly viewed cells into the gain_cell set
 int Planner::updateGain(Q& qnew, Q& qprev){
-  vector<double> qnew_state = qnew.state;
-  SensorFootprint sf_new(qnew_state.at(0), qnew_state.at(1), qnew_state.at(2), sf_depth, sf_width);
-  sf_new.computeViewedCells(qnew, qstart, tree, map);
+  SensorFootprint sf_new(qnew.state[0], qnew.state[1], qnew.state[2], sf_depth, sf_width);
+
+  unordered_set<int> visible_cells;
+  sf_new.computeVisibleCells(visible_cells, map);
+  for (unordered_set<int>::iterator it = visible_cells.begin();
+       it != visible_cells.end(); ++it) {
+    if (map.getStatus(*it) == UNMAPPED && !check_if_viewed(*it, qnew, qstart, tree)) {
+      qnew.gain_cells.insert(*it);
+    }
+  }
+  qnew.gain = qnew.gain_cells.size() + qprev.gain;
   return qnew.gain;
 }
 
 // returns total gain up till now
 int Planner::add_new(Tree& t, KDTree<DIM, vector<double>>& kd, Q& qnew, Q& qnear){
-  //cout << "add_new..." << endl;
   qnew.prev_state = qnear.state;
   t[qnew.state] = qnew;
-  int gain = updateGain(qnew, qnear);
-  // the reason i'm doing this again is i'm afraid that
-  // after updateGain modifie qnew, the thing int the tree is outdated
-  t[qnew.state] = qnew;
+  int gain = updateGain(tree[qnew.state], qnear);
   // add to kd tree
   Point<DIM> new_kd_pt = point_from_q(qnew);
   kd.insert(new_kd_pt, qnew.state);
-  //cout << "done add_new" << endl;
   return gain;
 }
 
@@ -283,39 +231,22 @@ void Planner::print_tree(){
 
 // find the nearest neighbor qnear of q and extend the tree t from qnear to q
 int Planner::extend(Q& q, Q& qnew){
-  //cout << "extend..." << endl;
-  //cout << q.state.size() << endl;
   Point<DIM> q_point = point_from_q(q);
   // TODO write custom distance function
   vector<double> qnear_state = kd_tree.kNNValue(q_point, 1);
   Q qnear = tree[qnear_state]; // look up qnear from map
-  if (qnear.state.size() < 3) {
-    cout << qnear.state.size() << endl;
-    print_vector(q.state);
-    print_vector(qnear_state);
-    print_tree();
-  }
+
   q.state.at(2) += qnear.state.at(2); // recall the theta in q was d_theta
   q.state.at(2) = process_angle(q.state.at(2));
   // if new_config(q, qnear, qnew) then
   // note: if trapped, new_config returns false, and gain is 0
   // i.e. gain = 0 iff qnew is NOT added to the tree
-  //print_vector(q.state);
-  //print_vector(qnear_state);
-  //cout << "ok" << endl;
   int gain = 0;
   if (new_config(qnear, q, qnew)){
-    //cout << "qnew added" << endl;
-    // add qnew to tree and kd tree
-    // ensure qnew isn't in tree
-    //cout << qnew.state.size() << endl;
     if (tree.count(qnew.state) == 0){
       gain = add_new(tree, kd_tree, qnew, qnear);
     }
-  } else {
-    //cout << "qnew NOT added" << endl;
   }
-  //cout << "done extend" << endl;
   return gain;
 }
 
@@ -391,195 +322,42 @@ bool Planner::new_config(Q& qfrom_, Q& qto_, Q& qnew){
 
 void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
   // find the path backward
-  cout << "tree size: " << tree.size() << endl;
-  vector<double> key;
   Q qtmp = qlast;
   vector<vector<double>> waypoints_vec;
-  std::set<vector<double>> waypoints_set;
   KDTree<DIM, vector<double>> kd_tree_new;
   Point<DIM> new_kd_pt;
-  if (qlast.state != qstart.state){
-    while(1){
-      key = qtmp.prev_state;
-      qtmp = tree[key];
-      if (qtmp.state != qstart.state){
-        waypoints_vec.push_back(key);
-        waypoints_set.insert(key);
-        new_kd_pt = point_from_q(qtmp);
-        kd_tree_new.insert(new_kd_pt, key);
-      } else {
-        break;
-      }
-    }
+  while (qtmp.state != qstart.state) {
+    new_kd_pt = point_from_q(qtmp);
+    kd_tree_new.insert(new_kd_pt, qtmp.state);
+    waypoints_vec.push_back(qtmp.state);
+    qtmp = tree[qtmp.prev_state];
   }
-  reverse(waypoints_vec.begin(), waypoints_vec.end());
-  waypoints_vec.push_back(qlast.state);
-  waypoints_set.insert(qlast.state);
-  new_kd_pt = point_from_q(qlast);
-  kd_tree_new.insert(new_kd_pt, qlast.state);
 
-  if (qlast.state == qstart.state){
-    newx = qlast.state.at(0);
-    newy = qlast.state.at(1);
-    newtheta = qlast.state.at(2);
-  } else {
-    vector<double> newwp = waypoints_vec.at(0);
-    newx = newwp.at(0);
-    newy = newwp.at(1);
-    newtheta = newwp.at(2);
-    cout << "waypoint sent to planner node: " << endl;
-    print_vector(newwp);
-  }
+  reverse(waypoints_vec.begin(), waypoints_vec.end());
+
+  cout << "getting new" << endl;
+  newx = waypoints_vec[0][0];
+  newy = waypoints_vec[0][1];
+  newtheta = waypoints_vec[0][2];
+  cout << "done getting new" << endl;
 
   // Update tree and kdtree (back up best branch)
   kd_tree = kd_tree_new;
-  if (qlast.state == qstart.state){
-    if(qlast.gain != qstart.gain){
-      tree = next_tree;
-      next_tree.clear();
-      q_best = qstart;
-    }
-    next_tree[waypoints_vec.at(0)] = qstart;
-    cout << "new tree size: 0 " << endl;
-    return;
-  } else {
-    // if a tree (and kd tree) is qstart->q1->q2->qlast,
-    // then after the backup, the tree (and kd tree) is q1->q2->qlast
-    // also update qstart to q1, with an updated set of gain_cells
-    Q q1;
-    for (int i = 0; i < waypoints_vec.size(); i++){
-      vector<double> key = waypoints_vec.at(i);
-      next_tree[key] = tree[key];
-      if (i == 0){
-        q1 = tree[key];
-      }
-    }
-    Q qstart_old = qstart;
-    qstart = q1;
-    qstart.gain_cells = qstart_old.gain_cells;
-    qstart.gain = qstart_old.gain;
-    next_tree[qstart.state] = qstart;
-  }
-  tree = next_tree;
-  next_tree.clear();
-  q_best = qlast;
-  
-  
-  cout << "new tree size: " << tree.size() << endl;
-  /*
-  cout << "new qstart: " << endl;
-  print_vector(qstart.state);
-  print_vector(qstart.prev_state);
-  cout << "is qstart in tree?" << endl;
-  Q qtest = tree[qstart.state];
-  print_vector(qtest.state);
-  print_vector(qtest.prev_state);
-  */
-}
 
-void Planner::store_all_steps(double& newx, double& newy, double& newtheta, Q& qlast){
-  cout << "tree size: " << tree.size() << endl;
-  vector<double> key;
-  Q qtmp = qlast;
-  vector<vector<double>> waypoints_vec; // a stack
-  KDTree<DIM, vector<double>> kd_tree_new;
-  Point<DIM> new_kd_pt;
-  waypoints_vec.push_back(qlast.state);
-  if (qlast.state != qstart.state){
-    while(1){
-      key = qtmp.prev_state;
-      qtmp = tree[key];
-      if (qtmp.state != qstart.state){
-        waypoints_vec.push_back(key);
-      } else {
-        break;
-      }
+  // if a tree (and kd tree) is qstart->q1->q2->qlast,
+  // then after the backup, the tree (and kd tree) is q1->q2->qlast
+  // also update qstart to q1, with an updated set of gain_cells
+  next_tree.clear();
+  for (int i = 0; i < waypoints_vec.size(); i++){
+    vector<double> key = waypoints_vec.at(i);
+    next_tree[key] = tree[key];
+    if (i == 0) {
+      next_tree[key].prev_state = next_tree[key].state;
     }
   }
-  // last .... fisrt step
-  cout << "banked size: " << waypoints_vec.size();
-  vector<double> newwp = waypoints_vec.back();
-  newx = newwp.at(0);
-  newy = newwp.at(1);
-  newtheta = newwp.at(2);
-  waypoints_vec.pop_back();
-  banked_steps_stack = waypoints_vec;
-  // update tree and kd
-  Q newwp_q = tree[newwp];
-  next_tree[newwp] = newwp_q;
-  cout << "newwp: ";
-  print_vector(newwp);
-  cout << "newwp_q: ";
-  print_vector(newwp_q.state);
-  tree = next_tree;
-  next_tree.clear();
-  new_kd_pt = point_from_q(newwp_q);
-  kd_tree_new.insert(new_kd_pt, newwp);
-  kd_tree = kd_tree_new;
-  qstart = newwp_q;
-  q_best = newwp_q;
-  //print_tree();
-}
 
-void Planner::pop_from_step_bank(double& newx, double& newy, double& newtheta){
-  KDTree<DIM, vector<double>> kd_tree_new;
-  Point<DIM> new_kd_pt;
-  vector<double> newwp = banked_steps_stack.back();
-  banked_steps_stack.pop_back();
-  newx = newwp.at(0);
-  newy = newwp.at(1);
-  newtheta = newwp.at(2);
-  // update tree and kd
-  Q newwp_q = Q(newx, newy, newtheta);
-  newwp_q.gain_cells = qstart.gain_cells;
-  newwp_q.gain = qstart.gain;
-  next_tree[newwp] = newwp_q;
   tree = next_tree;
-  next_tree.clear();
-  new_kd_pt = point_from_q(newwp_q);
-  kd_tree_new.insert(new_kd_pt, newwp);
-  kd_tree = kd_tree_new;
-  qstart = newwp_q;
-  q_best = newwp_q;
-  //print_tree();
-}
-
-void Planner::get_random_move(double &newx, double& newy, double& newtheta, Q& qbest, double &xdim, double &ydim){
-  double tl_left, tl_right, tl_bottom, tl_top;
-  double br_left, br_right, br_bottom, br_top;
-  double x, y, theta;
-  x = qbest.state.at(0);
-  y = qbest.state.at(1);
-  theta = qbest.state.at(2);
-  map.getCellExtent(tl_left, tl_right, tl_bottom, tl_top, map.getMapIdx(MAX(0,x-map.getCellLength()), MIN(y+map.getCellLength(), ydim-0.1)));
-  map.getCellExtent(br_left, br_right, br_bottom, br_top, map.getMapIdx(MIN(xdim-0.1, x+map.getCellLength()), MAX(0, y-map.getCellLength())));
-  bool valid = false;
-  Q qrand;
-  while (!valid) {
-    qrand = sample_new(tl_left, br_right, br_bottom, tl_top);
-    if (isValidConfiguration(qrand.state.at(0), qrand.state.at(1)))
-      valid = true;
-  }
-  qrand.state.at(2) = process_angle(qrand.state.at(2) + qbest.state.at(2));
-  // back up tree and move
-  qrand.gain_cells = qbest.gain_cells;
-  qrand.gain = qbest.gain;
-  next_tree[qrand.state] = qrand;
-  KDTree<DIM, vector<double>> kd_tree_new;
-  Point<DIM> new_kd_pt = point_from_q(qrand);
-  kd_tree_new.insert(new_kd_pt, qrand.state);
-  kd_tree = kd_tree_new;
-  tree = next_tree;
-  next_tree.clear();
-  newx = qrand.state.at(0);
-  newy = qrand.state.at(1);
-  newtheta = qrand.state.at(2);
-  q_best = qrand;
-  qstart = qrand;
-}
-
-void Planner::get_Astar_move(double &newx, double& newy, double& newtheta, Q& qbest){
-  // run multigoal a*
+  qbest = qlast;
 }
 
 // processed angles are in [0, 2*PI)
