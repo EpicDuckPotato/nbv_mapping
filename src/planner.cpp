@@ -350,7 +350,7 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
   // if a tree (and kd tree) is qstart->q1->q2->qlast,
   // then after the backup, the tree (and kd tree) is q1->q2->qlast
   // also update qstart to q1, with an updated set of gain_cells
-  next_tree.clear();
+  Tree next_tree;
   for (int i = 0; i < waypoints_vec.size(); i++){
     vector<double> key = waypoints_vec.at(i);
     next_tree[key] = tree[key];
@@ -359,6 +359,7 @@ void Planner::get_plan(double &newx, double &newy, double &newtheta, Q& qlast){
     }
   }
 
+  prev_tree = tree;
   tree = next_tree;
   qbest = qlast;
 }
@@ -376,4 +377,8 @@ double Planner::process_angle(double angle){
 
 const Tree &Planner::getTree() {
   return tree;
+}
+
+const Tree &Planner::getPrevTree() {
+  return prev_tree;
 }

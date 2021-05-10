@@ -125,13 +125,32 @@ int main(int argc, char **argv) {
   branch_marker.pose.orientation.x = 0;
   branch_marker.pose.orientation.y = 0;
   branch_marker.pose.orientation.z = 0;
-  branch_marker.scale.x = 0.1;
+  branch_marker.scale.x = 0.2;
   branch_marker.color.r = 1;
-  branch_marker.color.g = 0.7;
-  branch_marker.color.b = 0.26;
+  branch_marker.color.g = 0;
+  branch_marker.color.b = 1;
   branch_marker.color.a = 1;
   branch_marker.header.frame_id = "world";
   branch_marker.ns = "planner_node";
+
+  ros::Publisher tree_pub = nh.advertise<visualization_msgs::Marker>("/drone/tree", 1);
+  visualization_msgs::Marker tree_marker;
+  tree_marker.type = visualization_msgs::Marker::LINE_LIST;
+  tree_marker.action = visualization_msgs::Marker::ADD;
+  tree_marker.pose.position.x = 0;
+  tree_marker.pose.position.y = 0;
+  tree_marker.pose.position.z = 0;
+  tree_marker.pose.orientation.w = 1;
+  tree_marker.pose.orientation.x = 0;
+  tree_marker.pose.orientation.y = 0;
+  tree_marker.pose.orientation.z = 0;
+  tree_marker.scale.x = 0.05;
+  tree_marker.color.r = 1;
+  tree_marker.color.g = 1;
+  tree_marker.color.b = 1;
+  tree_marker.color.a = 1;
+  tree_marker.header.frame_id = "world";
+  tree_marker.ns = "planner_node";
 
   unordered_set<int> unmapped;
   for (int i = 0; i < cells.size(); ++i) {
@@ -236,10 +255,10 @@ int main(int argc, char **argv) {
     map_pub.publish(marker_array);
 
     // Publish best branch
-    const Tree &tree = planner.getTree();
+    const Tree &branch = planner.getTree();
     branch_marker.points.clear();
     int p = 0;
-    for (Tree::const_iterator it = tree.begin(); it != tree.end(); ++it) {
+    for (Tree::const_iterator it = branch.begin(); it != branch.end(); ++it) {
       Q q = it->second;
       if (q.state.size() < 2 || q.prev_state.size() < 2) {
         continue;
@@ -258,6 +277,30 @@ int main(int argc, char **argv) {
     }
     branch_marker.header.stamp = pose.header.stamp;
     branch_pub.publish(branch_marker);
+
+    // Publish full tree
+    const Tree &prev_tree = planner.getPrevTree();
+    tree_marker.points.clear();
+    p = 0;
+    for (Tree::const_iterator it = prev_tree.begin(); it != prev_tree.end(); ++it) {
+      Q q = it->second;
+      if (q.state.size() < 2 || q.prev_state.size() < 2) {
+        continue;
+      }
+      tree_marker.points.push_back(geometry_msgs::Point());
+      tree_marker.points[p].x = q.state[0];
+      tree_marker.points[p].y = q.state[1];
+      tree_marker.points[p].z = 0;
+      ++p;
+      tree_marker.points.push_back(geometry_msgs::Point());
+
+      tree_marker.points[p].x = q.prev_state[0];
+      tree_marker.points[p].y = q.prev_state[1];
+      tree_marker.points[p].z = 0;
+      ++p;
+    }
+    tree_marker.header.stamp = pose.header.stamp;
+    tree_pub.publish(tree_marker);
 
     cout << "Average planning time: " << av_time/steps << endl;
 

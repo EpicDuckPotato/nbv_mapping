@@ -67,6 +67,12 @@ class Planner {
      */
     const Tree &getTree();
 
+    /*
+     * getPrevTree: gets the full tree from the previous exploration step
+     * RETURN: constant reference to previous full tree
+     */
+    const Tree &getPrevTree();
+
   private:
     Map map;
     double x;
@@ -86,12 +92,12 @@ class Planner {
     vector<vector<double>> banked_steps_stack;
     int exploration_number = 0;
     int counter = 0;
-    int N_max = 15;
+    int N_max = 50;
     int N_tol = 10000;
     Q qstart;
     Q qbest;
     Tree tree;
-    Tree next_tree;
+    Tree prev_tree;
     // interpolation resolution, currently set to arbitrary values
     double X_RES = 0.1;
     double Y_RES = 0.05;

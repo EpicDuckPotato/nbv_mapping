@@ -9,6 +9,7 @@ Panels:
         - /Map1
         - /Sensor Footprint1
         - /Best Branch1
+        - /Tree1
       Splitter Ratio: 0.4651159942150116
     Tree Height: 804
   - Class: rviz/Selection
@@ -101,6 +102,14 @@ Visualization Manager:
       Enabled: true
       Marker Topic: /drone/best_branch
       Name: Best Branch
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /drone/tree
+      Name: Tree
       Namespaces:
         {}
       Queue Size: 100
