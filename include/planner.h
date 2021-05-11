@@ -12,13 +12,16 @@
 #include "KDTree.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include<time.h>
+#include <time.h>
 #include <bits/stdc++.h>
 #include <chrono>
 #include <unistd.h>
+#include <algorithm>
+#include "a_star.h"
 
 
 #define DIM 3
+
 
 class Planner {
   public:
@@ -93,7 +96,7 @@ class Planner {
     int exploration_number = 0;
     int counter = 0;
     int N_max = 50;
-    int N_tol = 10000;
+    int N_tol = 5000;
     Q qstart;
     Q qbest;
     Tree tree;
@@ -107,8 +110,8 @@ class Planner {
 
     double EPS = 0.64; // distance squared. distance is 0.8m
 
-    int stuck_time = 0;
-    int MAX_STUCK_TIME = 3;
+    int big_tree_counter = 0;
+    int MAX_STUCK_TIME = 10;
     /*
      * sample_new: samples a new (x,y,dtheta), where dtheta is the the difference between the new theta and its predecessor's theta, which is currently unknown
      * ARGUMENTS
@@ -233,6 +236,20 @@ class Planner {
      * theta1, theta2: angles to wrap around
      */
     void wrap_around_theta(double& theta1, double& theta2);
+
+    bool a_star_planner();
+
+    void get_successors(AugmentedNode& aug_node, unordered_set<int>& goal_idx_set, vector<int>& successors);
+
+    void compute_goals(unordered_set<int> &goal_set);
+
+    void compute_h(Node *node, unordered_set<int> &goal_set);
+
+    double compute_cost(Node* n1, Node* n2);
+
+    void backtrack(Node* img_goal);
+
+    void get_next_and_update_tree(double& newx, double& newy, double& newtheta);
 };
 
 #endif

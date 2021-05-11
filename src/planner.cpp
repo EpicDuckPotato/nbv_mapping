@@ -15,6 +15,7 @@
 #endif
 
 
+
 Planner::Planner(int maprows, int mapcols, double cell_length, double x, double y, double theta, double sf_depth, double sf_width) : map(maprows, mapcols, cell_length, vector<CellStatus>(maprows*mapcols, UNMAPPED)), x(x), y(y), theta(theta), sf_depth(sf_depth), sf_width(sf_width) {
   srand(time(0));
 }
@@ -64,6 +65,12 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   // TODO: 1st iteration? Proceeding iterations?
   cout <<"start exploration " << exploration_number << endl;
 
+  if (banked_steps_stack.size() > 0){
+    get_next_and_update_tree(newx, newy, newtheta);
+    exploration_number += 1;
+    return false;
+  }
+
   double gbest;
   Q qbest_tmp;
 
@@ -107,7 +114,7 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
 
   double xdim, ydim;
   map.getMapDim(xdim, ydim);
-
+  double gbest_backup = gbest;
   while (tree.size() < N_max || gbest == 0){
     Q qnew;
     // sample a point qrand in config space, theta is d_theta
@@ -118,14 +125,31 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
       gbest = gain;
     }
     if (tree.size() > N_tol){
+      //cout << "assume area is fully mapped"<< endl;
+      //return true;
+      break;
+    }
+  }
+  if (tree.size() > N_max)
+    big_tree_counter += 1;
+  else
+    big_tree_counter = 0;
+
+  if (big_tree_counter > MAX_STUCK_TIME){
+    cout << "running a*" << endl;
+    bool res = a_star_planner();
+    if (res == false){
       cout << "assume area is fully mapped"<< endl;
       return true;
     }
+    // backup tree
+    get_next_and_update_tree(newx, newy, newtheta);
+    big_tree_counter = 0;
   }
-
-  cout << "getting plan" << endl;
-  get_plan(newx, newy, newtheta, qbest_tmp);
-
+  else{
+    cout << "getting plan" << endl;
+    get_plan(newx, newy, newtheta, qbest_tmp);
+  }
   exploration_number += 1;
   return false;
 }
@@ -381,4 +405,194 @@ const Tree &Planner::getTree() {
 
 const Tree &Planner::getPrevTree() {
   return prev_tree;
+}
+
+// multi-goal a*, turns on special mode and fills in the tree
+bool Planner::a_star_planner() {
+  // init
+  // goals are mapped free cells adjacent to unmapped cells
+  unordered_set<int> goal_idx_set;
+  // given the map, fill in the goal set
+  compute_goals(goal_idx_set);
+  if (goal_idx_set.size() == 0)
+    return false;
+  // start is cell where the robot is in now
+  Node *start_node = new Node(map.getMapIdx(qstart.state.at(0), qstart.state.at(1)));
+  start_node->g = 0;
+  // compute and fill in the h valud based on the closest goal
+  compute_h(start_node, goal_idx_set);
+  // imaginary goal
+  Node *img_goal_node;
+  bool found_soln = false;
+  priority_queue<AugmentedNode> OPEN;
+  unordered_map<int, Node*> EXPANDED;
+  unordered_map<int, Node*> pq_set;
+  //unordered_map<string, Node*> EXPANDED;
+  //unordered_map<string, Node*> pq_set;
+  OPEN.push(AugmentedNode(start_node));
+  //while(sgoal is not expanded and OPEN ≠ 0)
+  while (OPEN.size() != 0){
+    //remove s with the smallest [f(s) = g(s)+h(s)] from OPEN;
+    AugmentedNode aug_node = OPEN.top();
+    OPEN.pop();
+    //insert s into CLOSED;
+    EXPANDED[aug_node.node->index] = aug_node.node;
+    pq_set.erase(aug_node.node->index);
+    // if imaginary goal is expanded, we stop
+    if (aug_node.node->index == -1){
+      found_soln = true;
+      img_goal_node = aug_node.node;
+      break;
+    }
+    //for every successor s’ of s such that s’ not in CLOSED
+    vector<int> successors;
+    get_successors(aug_node, goal_idx_set, successors);
+    for (size_t i = 0; i < successors.size(); i++){
+      int s_idx = successors.at(i);
+      // check if in expanded
+      if (EXPANDED.find(s_idx) != EXPANDED.end())
+        continue;
+      // check if in open
+      auto successor_lookup = pq_set.find(s_idx); 
+      Node *successor_node;
+      bool successor_in_open = true;
+      if (successor_lookup == pq_set.end()){
+        successor_in_open = false;
+        successor_node = new Node(s_idx);
+        successor_node->predecessor = aug_node.node;
+      }
+      else{
+        successor_node = successor_lookup->second;
+      }
+      if (successor_node->h == -1)
+        compute_h(successor_node, goal_idx_set);
+      //if g(s’) > g(s) + c(s,s’)
+      double cost = compute_cost(aug_node.node, successor_node);
+      if (successor_node->g == -1 || successor_node->g > aug_node.node->g + cost){
+        //g(s’) = g(s) + c(s,s’);
+        successor_node->g = aug_node.node->g + cost;
+        successor_node->predecessor = aug_node.node;
+        //insert s’ into OPEN;
+        if (!successor_in_open){
+          OPEN.push(AugmentedNode(successor_node));
+          pq_set[s_idx] = successor_node;
+        }
+      }
+    }
+  }
+  KDTree<DIM, vector<double>> kd_tree_new;
+  kd_tree = kd_tree_new;
+  if (found_soln){
+    backtrack(img_goal_node);
+    return true;
+  } else{
+    return false;
+  }
+  
+}
+
+// get the successors of a node
+void Planner::get_successors(AugmentedNode& aug_node, unordered_set<int>& goal_idx_set, vector<int>& successors){
+  // if regular state, successors are its free neighbors
+  if (goal_idx_set.find(aug_node.node->index) == goal_idx_set.end()){
+    map.getFreeNeighbors(aug_node.node->index, successors);
+  } else {
+    successors.push_back(-1);
+  }
+  // else if one of the goal states, successor is the imaginary goal
+}
+
+void Planner::compute_goals(unordered_set<int> &goal_set){
+  // check every unmapped cells, find their mapped free neighbors
+  vector<int> unmapped_idxs;
+  map.findUnmappedCells(unmapped_idxs);
+  for (int i = 0; i < unmapped_idxs.size(); i++){
+    int idx = unmapped_idxs.at(i);
+    vector<int> free_neighbors;
+    map.getFreeNeighbors(idx, free_neighbors);
+    for (int j = 0; j < free_neighbors.size(); j++){
+      int neighbor_idx = free_neighbors.at(j);
+      goal_set.insert(neighbor_idx);
+    }
+  }
+}
+
+void Planner::compute_h(Node *node, unordered_set<int> &goal_set){
+  // goals and img goal have h=0
+  if (node->index == -1 || goal_set.find(node->index) != goal_set.end()){
+    node->h = 0;
+    return;
+  }
+  double min_dist = -1;
+  double cx, cy;
+  map.getCellCenter(node->index, cx, cy);
+  for (const auto& goal : goal_set){
+    double gcx, gcy;
+    map.getCellCenter(goal, gcx, gcy);
+    double dist = (sqrt(2)-1)*MIN(abs(cx-gcx), abs(cy-gcy)) + MAX(abs(cx-gcx), abs(cy-gcy));
+    if (min_dist = -1 || dist < min_dist){
+      min_dist = dist;
+    }
+  }
+  node->h = min_dist;
+}
+
+// cost from goals to img goal is 0
+double Planner::compute_cost(Node* n1, Node* n2){
+  return map.compute_center_distance(n1->index, n2->index);
+}
+
+void Planner::backtrack(Node* img_goal){
+  Node *curr = img_goal;
+  vector<int> waypoint_idx;
+  while (1){
+    if (curr->index != -1)
+      waypoint_idx.push_back(curr->index);
+    if (curr->predecessor != nullptr)
+      curr = curr->predecessor;
+    else
+      break;
+  }
+
+  int goal = waypoint_idx.at(0);
+  reverse(waypoint_idx.begin(), waypoint_idx.end());
+  double theta_fin = map.computeThetaFin(goal);
+  // when we move, we first move to the center of the current cell
+  // then move along the path ultil we reach the goal with theta = theta_fin
+  // populate banked_steps_stack 
+  int num_segments = waypoint_idx.size();
+  double theta_now = theta;
+  wrap_around_theta(theta_now, theta_fin);
+  double th_res = fabs(theta_now - theta_fin) / (double)num_segments;
+  if (theta_fin < theta_now)
+    th_res = -th_res;
+  int i = 0;
+  while (waypoint_idx.size() > 0){ // the first thing we pop is goal
+    int idx = waypoint_idx.back();
+    waypoint_idx.pop_back();
+    double cx, cy, th;
+    map.getCellCenter(idx, cx, cy);
+    vector<double> vect{cx, cy, process_angle(theta_fin - i * th_res)};
+    banked_steps_stack.push_back(vect);
+    i++;
+  }
+}
+
+void Planner::get_next_and_update_tree(double& newx, double& newy, double& newtheta){
+  vector<double> next_step = banked_steps_stack.back();
+  newx = next_step[0];
+  newy = next_step[1];
+  newtheta = next_step[2];
+  prev_tree = tree;
+  // construct new tree
+  tree.clear();
+  for (int i = 0; i < banked_steps_stack.size()-1; i++){
+    Q q = Q(banked_steps_stack[i]);
+    q.prev_state = banked_steps_stack[i+1];
+    tree[q.state] = q;
+  }
+  Q q1 = Q(next_step);
+  q1.prev_state = next_step;
+  tree[q1.state] = q1;
+  banked_steps_stack.pop_back();
 }

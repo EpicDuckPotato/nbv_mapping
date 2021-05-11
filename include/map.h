@@ -1,6 +1,7 @@
 #ifndef MAP_H
 #define MAP_H
 #include <vector>
+#include <math.h>
 
 using namespace std;
 
@@ -95,6 +96,18 @@ class Map {
      * RETURN: true if they're in the map, false if not
      */
     void getMapDim(double &xdim_, double &ydim_) const;
+
+    void getCellCenter(int index, double &cx, double &cy);
+
+    double compute_center_distance(int index1, int index2);
+
+    void findUnmappedCells(vector<int>& unmapped_idxs);
+
+    void getFreeNeighbors(int idx, vector<int>& free_neighbors);
+
+    double computeThetaFin(int goal);
+
+    double get_angle(int dx, int dy);
 
   private:
     int rows;
