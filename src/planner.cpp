@@ -80,6 +80,7 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   qstart.prev_state.push_back(x);
   qstart.prev_state.push_back(y);
   qstart.prev_state.push_back(theta);
+  qstart.path_length = 0;
   tree[qstart.state] = qstart;
   Point<DIM> ps = point_from_q(qstart);
   kd_tree.insert(ps, qstart.state);
@@ -103,6 +104,11 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
     for (int i = waypoints_vec.size() - 2; i >= 0; --i) {
       tree[waypoints_vec[i]].gain = 0;
       tree[waypoints_vec[i]].gain_cells.clear();
+
+      double dispx = tree[waypoints_vec[i]].state[0] - tree[waypoints_vec[i]].prev_state[0];
+      double dispy = tree[waypoints_vec[i]].state[1] - tree[waypoints_vec[i]].prev_state[1];
+      tree[waypoints_vec[i]].path_length = tree[waypoints_vec[i + 1]].path_length + sqrt(dispx*dispx + dispy*dispy);
+
       updateGain(tree[waypoints_vec[i]], tree[waypoints_vec[i + 1]]);
     }
     qbest = tree[waypoints_vec[0]];
