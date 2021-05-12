@@ -61,7 +61,6 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
       //Terminate exploration
   //σ ← ExtractBestPathSegment(nbest)
   //Delete T
-
   cout <<"start exploration " << exploration_number << endl;
   cout << "x, y, th: " << x << ", " << y << ", " << theta << endl;
   if (banked_steps_stack.size() > 0){
@@ -78,18 +77,26 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   msize = mr * mc;
   map.findUnmappedCells(unmapped_idxs);
   double ratio = (double)unmapped_idxs.size()/(double)msize;
-  if (ratio < A_STAR_THRESH){
-    cout << "running a*, ratio: " << ratio << endl;
-    bool res = a_star_planner();
-    if (res == false){
-      cout << "a* assume area is fully mapped"<< endl;
-      return true;
+  // the ratio determines the cool down time for a*
+  // the larger the ratio, the longer the cool down time
+  cout << "ratio: " << ratio << endl;
+  //if (1){
+  if (ratio < 0.7){
+    if (cool_down_counter <= 0) {
+      cout << "running a*: " << ratio << endl;
+      bool res = a_star_planner();
+      if (res == false){
+        cout << "a* assume area is fully mapped"<< endl;
+        return true;
+      }
+      // backup tree
+      get_next_and_update_tree(newx, newy, newtheta);
+      big_tree_counter = 0;
+      exploration_number += 1;
+      cool_down_counter = MAX((int)(-260.0*ratio*ratio+364*ratio-47), 10);
+      return false;
     }
-    // backup tree
-    get_next_and_update_tree(newx, newy, newtheta);
-    big_tree_counter = 0;
-    exploration_number += 1;
-    return false;
+    cool_down_counter -= 1;
   }
 
   double gbest;
@@ -162,7 +169,7 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
     big_tree_counter += 1;
   else
     big_tree_counter = 0;
-
+/*
   if (big_tree_counter > MAX_STUCK_TIME){
     cout << "running a* due to big tree" << endl;
     bool res = a_star_planner();
@@ -174,10 +181,10 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
     get_next_and_update_tree(newx, newy, newtheta);
     big_tree_counter = 0;
   }
-  else{
+  else{*/
     cout << "getting plan" << endl;
     get_plan(newx, newy, newtheta, qbest_tmp);
-  }
+  //}
   exploration_number += 1;
   return false;
 }
@@ -446,6 +453,9 @@ bool Planner::a_star_planner() {
     cout << "no goal??" << endl;
     return false;
   }
+  for (const auto& go : goal_idx_set){
+    cout << "goal: " << go << endl;
+  }
   // start is cell where the robot is in now
   Node *start_node = new Node(map.getMapIdx(x, y));
   start_node->g = 0;
@@ -478,10 +488,10 @@ bool Planner::a_star_planner() {
     //for every successor s’ of s such that s’ not in CLOSED
     vector<int> successors;
     get_successors(aug_node, goal_idx_set, successors);
-    cout << "successors: " << endl;
+    //cout << "cur idx: " << aug_node.node->index << " successors: " << endl;
     for (size_t i = 0; i < successors.size(); i++){
       int s_idx = successors.at(i);
-      cout << s_idx << endl;
+      //cout << s_idx << endl;
       // check if in expanded
       if (EXPANDED.find(s_idx) != EXPANDED.end())
         continue;

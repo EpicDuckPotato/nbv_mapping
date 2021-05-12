@@ -79,14 +79,41 @@ void Map::findUnmappedCells(vector<int> &unmapped_idxs){
     }     
 }
 
+void Map::findMappedCells(vector<int> &mapped_idxs){
+    for (int i = 0; i < rows * cols; i++){
+      if (getStatus(i) == FREE)
+        mapped_idxs.push_back(i);
+    }     
+}
+
+bool Map::blocked(int idx){
+  int row = idx/cols;
+  int col = idx%cols;
+  bool blocked = true;
+  for (int i = -1; i < 2; i++){
+    int row_new = row + i;
+    for (int j = -1; j < 2; j++){
+      int col_new = col + j;
+      if ((row_new == row || col_new == col) && (row_new != row || col_new != col)&& row_new >= 0 && row_new < rows && col_new >= 0 && col_new < cols){
+        int idx_tmp = row_new * cols + col_new;
+        if (getStatus(idx_tmp) == FREE)
+          return false;
+      }
+    }
+  }
+  return true;
+}
+
 void Map::getFreeNeighbors(int idx, vector<int>& free_neighbors){
+  if (blocked(idx))
+    return;
   int row = idx/cols;
   int col = idx%cols;
   for (int i = -1; i < 2; i++){
     int row_new = row + i;
     for (int j = -1; j < 2; j++){
       int col_new = col + j;
-      if (row_new != row && col_new != col && row_new >= 0 && row_new < rows && col_new >= 0 && col_new < cols){
+      if ((row_new != row || col_new != col) && row_new >= 0 && row_new < rows && col_new >= 0 && col_new < cols){
         int idx_tmp = row_new * cols + col_new;
         if (getStatus(idx_tmp) == FREE)
           free_neighbors.push_back(idx_tmp);
@@ -103,7 +130,7 @@ double Map::computeThetaFin(int idx){
     int row_new = row + i;
     for (int j = -1; j < 2; j++){
       int col_new = col + j;
-      if (row_new != row && col_new != col && row_new >= 0 && row_new < rows && col_new >= 0 && col_new < cols){
+      if ((row_new != row || col_new != col) && row_new >= 0 && row_new < rows && col_new >= 0 && col_new < cols){
         int idx_tmp = row_new * cols + col_new;
         if (getStatus(idx_tmp) == UNMAPPED)
           return get_angle(j, i);

@@ -96,7 +96,7 @@ class Planner {
     int exploration_number = 0;
     int counter = 0;
     int N_max = 50;
-    int N_tol = 2000;
+    int N_tol = 10000;
     //int N_cap = 10000;
     Q qstart;
     Q qbest;
@@ -104,7 +104,7 @@ class Planner {
     Tree prev_tree;
     // interpolation resolution, currently set to arbitrary values
     double X_RES = 0.1;
-    double Y_RES = 0.05;
+    double Y_RES = 0.1;
     double THETA_RES = M_PI/20;
     // delta_theta between two steps is in range [-pi/4, pi/4)
     double DTHETA_MAX = M_PI/4;
@@ -112,7 +112,9 @@ class Planner {
     double EPS = 0.64; // distance squared. distance is 0.8m
     double A_STAR_THRESH = 0.2;
     int big_tree_counter = 0;
-    int MAX_STUCK_TIME = 5;
+    int MAX_STUCK_TIME = 100;
+
+    int cool_down_counter = 0;
     /*
      * sample_new: samples a new (x,y,dtheta), where dtheta is the the difference between the new theta and its predecessor's theta, which is currently unknown
      * ARGUMENTS

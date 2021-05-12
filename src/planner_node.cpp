@@ -308,7 +308,8 @@ int main(int argc, char **argv) {
     ros::spinOnce();
   }
 
-  //cout << "Distance travelled: " << dist << endl;
+  cout << "Distance travelled: " << dist << endl;
+  
 
   return 0;
 }

@@ -2,6 +2,8 @@
 #define MAP_H
 #include <vector>
 #include <math.h>
+#include <stdlib.h>
+#include <iostream>
 
 using namespace std;
 
@@ -110,6 +112,10 @@ class Map {
     double get_angle(int dx, int dy);
 
     void getRowsCols(int& rows_, int& cols_);
+
+    void findMappedCells(vector<int> &mapped_idxs);
+
+    bool blocked(int idx);
 
   private:
     int rows;
