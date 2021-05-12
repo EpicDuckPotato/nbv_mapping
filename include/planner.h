@@ -96,8 +96,8 @@ class Planner {
     int exploration_number = 0;
     int counter = 0;
     int N_max = 50;
-    int N_tol = 5000;
-    int N_cap = 10000;
+    int N_tol = 2000;
+    //int N_cap = 10000;
     Q qstart;
     Q qbest;
     Tree tree;
@@ -110,7 +110,7 @@ class Planner {
     double DTHETA_MAX = M_PI/4;
 
     double EPS = 0.64; // distance squared. distance is 0.8m
-
+    double A_STAR_THRESH = 0.2;
     int big_tree_counter = 0;
     int MAX_STUCK_TIME = 5;
     /*
@@ -242,7 +242,7 @@ class Planner {
 
     void get_successors(AugmentedNode& aug_node, unordered_set<int>& goal_idx_set, vector<int>& successors);
 
-    void compute_goals(unordered_set<int> &goal_set);
+    void compute_goals(unordered_set<int> &goal_set, int cur_idx);
 
     void compute_h(Node *node, unordered_set<int> &goal_set);
 

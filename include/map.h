@@ -109,6 +109,8 @@ class Map {
 
     double get_angle(int dx, int dy);
 
+    void getRowsCols(int& rows_, int& cols_);
+
   private:
     int rows;
     int cols;

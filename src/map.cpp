@@ -134,3 +134,8 @@ double Map::get_angle(int dx, int dy){
       return M_PI*5/4;
   }
 }
+
+void Map::getRowsCols(int& rows_, int& cols_){
+  rows_ = rows;
+  cols_ = cols;
+}

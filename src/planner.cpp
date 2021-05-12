@@ -14,7 +14,7 @@
 #define	MIN(A, B)	((A) < (B) ? (A) : (B))
 #endif
 
-
+using namespace std;
 
 Planner::Planner(int maprows, int mapcols, double cell_length, double x, double y, double theta, double sf_depth, double sf_width) : map(maprows, mapcols, cell_length, vector<CellStatus>(maprows*mapcols, UNMAPPED)), x(x), y(y), theta(theta), sf_depth(sf_depth), sf_width(sf_width) {
   srand(time(0));
@@ -62,12 +62,32 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   //σ ← ExtractBestPathSegment(nbest)
   //Delete T
 
-  // TODO: 1st iteration? Proceeding iterations?
   cout <<"start exploration " << exploration_number << endl;
-  cout << "is position valid? " << isValidConfiguration(x, y) << endl;
+  cout << "x, y, th: " << x << ", " << y << ", " << theta << endl;
   if (banked_steps_stack.size() > 0){
     cout << "popping" << endl;
     get_next_and_update_tree(newx, newy, newtheta);
+    exploration_number += 1;
+    return false;
+  }
+
+  // determine which planner to use by looking at unmapped area vs mapped
+  vector<int> unmapped_idxs;
+  int mr, mc, msize;
+  map.getRowsCols(mr, mc);
+  msize = mr * mc;
+  map.findUnmappedCells(unmapped_idxs);
+  double ratio = (double)unmapped_idxs.size()/(double)msize;
+  if (ratio < A_STAR_THRESH){
+    cout << "running a*, ratio: " << ratio << endl;
+    bool res = a_star_planner();
+    if (res == false){
+      cout << "a* assume area is fully mapped"<< endl;
+      return true;
+    }
+    // backup tree
+    get_next_and_update_tree(newx, newy, newtheta);
+    big_tree_counter = 0;
     exploration_number += 1;
     return false;
   }
@@ -132,26 +152,22 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
       gbest = gain;
     }
     if (tree.size() > N_tol){
-      //cout << "assume area is fully mapped"<< endl;
-      //return true;
+      cout << "assume area is fully mapped, "<< tree.size() << endl;
+      return true;
       break;
     }
   }
-  if (tree.size() > N_cap){
-    cout << "assume area is fully mapped"<< endl;
-    return true;
-  }
+  cout << "tree size: " << tree.size() << endl;
   if (tree.size() > N_max)
     big_tree_counter += 1;
   else
     big_tree_counter = 0;
 
   if (big_tree_counter > MAX_STUCK_TIME){
-    cout << "running a*" << endl;
+    cout << "running a* due to big tree" << endl;
     bool res = a_star_planner();
     if (res == false){
       cout << "a* assume area is fully mapped"<< endl;
-      cout << "is position valid? " << isValidConfiguration(x, y) << endl;
       return true;
     }
     // backup tree
@@ -425,14 +441,15 @@ bool Planner::a_star_planner() {
   // goals are mapped free cells adjacent to unmapped cells
   unordered_set<int> goal_idx_set;
   // given the map, fill in the goal set
-  compute_goals(goal_idx_set);
+  compute_goals(goal_idx_set, map.getMapIdx(x, y));
   if (goal_idx_set.size() == 0){
     cout << "no goal??" << endl;
     return false;
   }
   // start is cell where the robot is in now
-  Node *start_node = new Node(map.getMapIdx(qstart.state.at(0), qstart.state.at(1)));
+  Node *start_node = new Node(map.getMapIdx(x, y));
   start_node->g = 0;
+  start_node->predecessor = start_node;
   // compute and fill in the h valud based on the closest goal
   compute_h(start_node, goal_idx_set);
   // imaginary goal
@@ -461,6 +478,7 @@ bool Planner::a_star_planner() {
     //for every successor s’ of s such that s’ not in CLOSED
     vector<int> successors;
     get_successors(aug_node, goal_idx_set, successors);
+    cout << "successors: " << endl;
     for (size_t i = 0; i < successors.size(); i++){
       int s_idx = successors.at(i);
       cout << s_idx << endl;
@@ -497,8 +515,10 @@ bool Planner::a_star_planner() {
   }
   KDTree<DIM, vector<double>> kd_tree_new;
   kd_tree = kd_tree_new;
+  cout << "here" << endl;
   if (found_soln){
     backtrack(img_goal_node);
+    cout << "done backtrack" << endl;
     return true;
   } else{
     cout << " soln not found??" << endl;
@@ -518,7 +538,7 @@ void Planner::get_successors(AugmentedNode& aug_node, unordered_set<int>& goal_i
   // else if one of the goal states, successor is the imaginary goal
 }
 
-void Planner::compute_goals(unordered_set<int> &goal_set){
+void Planner::compute_goals(unordered_set<int> &goal_set, int cur_idx){
   // check every unmapped cells, find their mapped free neighbors
   vector<int> unmapped_idxs;
   map.findUnmappedCells(unmapped_idxs);
@@ -528,7 +548,8 @@ void Planner::compute_goals(unordered_set<int> &goal_set){
     map.getFreeNeighbors(idx, free_neighbors);
     for (int j = 0; j < free_neighbors.size(); j++){
       int neighbor_idx = free_neighbors.at(j);
-      goal_set.insert(neighbor_idx);
+      if (neighbor_idx != cur_idx)
+        goal_set.insert(neighbor_idx);
     }
   }
 }
@@ -545,7 +566,8 @@ void Planner::compute_h(Node *node, unordered_set<int> &goal_set){
   for (const auto& goal : goal_set){
     double gcx, gcy;
     map.getCellCenter(goal, gcx, gcy);
-    double dist = (sqrt(2)-1)*MIN(abs(cx-gcx), abs(cy-gcy)) + MAX(abs(cx-gcx), abs(cy-gcy));
+    double dist = sqrt((gcx-cx)*(gcx-cx) + (gcy-cy) * (gcy-cy));
+    //double dist = (sqrt(2)-1)*MIN(abs(cx-gcx), abs(cy-gcy)) + MAX(abs(cx-gcx), abs(cy-gcy));
     if (min_dist = -1 || dist < min_dist){
       min_dist = dist;
     }
@@ -560,16 +582,18 @@ double Planner::compute_cost(Node* n1, Node* n2){
 
 void Planner::backtrack(Node* img_goal){
   Node *curr = img_goal;
+  cout << "is null: " << (curr == nullptr) << endl;
   vector<int> waypoint_idx;
   while (1){
+    cout << "idx = " << curr->index << endl;
     if (curr->index != -1)
       waypoint_idx.push_back(curr->index);
-    if (curr->predecessor != nullptr)
+    if (curr->predecessor != curr)
       curr = curr->predecessor;
     else
       break;
   }
-
+  cout << "waypoint size:" << waypoint_idx.size() << endl;
   int goal = waypoint_idx.at(0);
   reverse(waypoint_idx.begin(), waypoint_idx.end());
   double theta_fin = map.computeThetaFin(goal);
@@ -611,4 +635,5 @@ void Planner::get_next_and_update_tree(double& newx, double& newy, double& newth
   q1.prev_state = next_step;
   tree[q1.state] = q1;
   banked_steps_stack.pop_back();
+  qstart = q1;
 }
