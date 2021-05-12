@@ -97,6 +97,7 @@ class Planner {
     int counter = 0;
     int N_max = 50;
     int N_tol = 5000;
+    int N_cap = 10000;
     Q qstart;
     Q qbest;
     Tree tree;
@@ -111,7 +112,7 @@ class Planner {
     double EPS = 0.64; // distance squared. distance is 0.8m
 
     int big_tree_counter = 0;
-    int MAX_STUCK_TIME = 10;
+    int MAX_STUCK_TIME = 5;
     /*
      * sample_new: samples a new (x,y,dtheta), where dtheta is the the difference between the new theta and its predecessor's theta, which is currently unknown
      * ARGUMENTS

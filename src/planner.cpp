@@ -64,8 +64,9 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
 
   // TODO: 1st iteration? Proceeding iterations?
   cout <<"start exploration " << exploration_number << endl;
-
+  cout << "is position valid? " << isValidConfiguration(x, y) << endl;
   if (banked_steps_stack.size() > 0){
+    cout << "popping" << endl;
     get_next_and_update_tree(newx, newy, newtheta);
     exploration_number += 1;
     return false;
@@ -130,6 +131,10 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
       break;
     }
   }
+  if (tree.size() > N_cap){
+    cout << "assume area is fully mapped"<< endl;
+    return true;
+  }
   if (tree.size() > N_max)
     big_tree_counter += 1;
   else
@@ -139,7 +144,8 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
     cout << "running a*" << endl;
     bool res = a_star_planner();
     if (res == false){
-      cout << "assume area is fully mapped"<< endl;
+      cout << "a* assume area is fully mapped"<< endl;
+      cout << "is position valid? " << isValidConfiguration(x, y) << endl;
       return true;
     }
     // backup tree
@@ -414,8 +420,10 @@ bool Planner::a_star_planner() {
   unordered_set<int> goal_idx_set;
   // given the map, fill in the goal set
   compute_goals(goal_idx_set);
-  if (goal_idx_set.size() == 0)
+  if (goal_idx_set.size() == 0){
+    cout << "no goal??" << endl;
     return false;
+  }
   // start is cell where the robot is in now
   Node *start_node = new Node(map.getMapIdx(qstart.state.at(0), qstart.state.at(1)));
   start_node->g = 0;
@@ -449,6 +457,7 @@ bool Planner::a_star_planner() {
     get_successors(aug_node, goal_idx_set, successors);
     for (size_t i = 0; i < successors.size(); i++){
       int s_idx = successors.at(i);
+      cout << s_idx << endl;
       // check if in expanded
       if (EXPANDED.find(s_idx) != EXPANDED.end())
         continue;
@@ -486,6 +495,7 @@ bool Planner::a_star_planner() {
     backtrack(img_goal_node);
     return true;
   } else{
+    cout << " soln not found??" << endl;
     return false;
   }
   

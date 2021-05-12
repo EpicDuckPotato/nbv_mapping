@@ -132,6 +132,7 @@ add_library(planning OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/geometry.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/planner.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/tree.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/a_star.cpp
 )
 
 ## Add cmake target dependencies of the library
