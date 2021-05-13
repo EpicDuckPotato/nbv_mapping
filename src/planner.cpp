@@ -81,7 +81,8 @@ bool Planner::computeNextStep(double &newx, double &newy, double &newtheta) {
   // the larger the ratio, the longer the cool down time
   cout << "ratio: " << ratio << endl;
   //if (1){
-  if (ratio < 0.7){
+    
+  if (ratio < 0.3){
     if (cool_down_counter <= 0) {
       cout << "running a*: " << ratio << endl;
       bool res = a_star_planner();
@@ -576,8 +577,8 @@ void Planner::compute_h(Node *node, unordered_set<int> &goal_set){
   for (const auto& goal : goal_set){
     double gcx, gcy;
     map.getCellCenter(goal, gcx, gcy);
-    double dist = sqrt((gcx-cx)*(gcx-cx) + (gcy-cy) * (gcy-cy));
-    //double dist = (sqrt(2)-1)*MIN(abs(cx-gcx), abs(cy-gcy)) + MAX(abs(cx-gcx), abs(cy-gcy));
+    //double dist = sqrt((gcx-cx)*(gcx-cx) + (gcy-cy) * (gcy-cy));
+    double dist = (sqrt(2)-1)*MIN(abs(cx-gcx), abs(cy-gcy)) + MAX(abs(cx-gcx), abs(cy-gcy));
     if (min_dist = -1 || dist < min_dist){
       min_dist = dist;
     }
